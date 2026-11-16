@@ -1,0 +1,15 @@
+// Unit tests load pages directly: lazy chunk imports add multi-second, load-dependent delays under jsdom.
+// Code splitting itself is exercised by the production build and the Playwright E2E suite.
+export { DashboardPage } from '@/pages/DashboardPage'
+export { LivePage } from '@/pages/LivePage'
+export { SoilPage } from '@/pages/SoilPage'
+export { VisionPage } from '@/pages/VisionPage'
+export { RecommendationsPage } from '@/pages/RecommendationsPage'
+export { IrrigationPage } from '@/pages/IrrigationPage'
+export { NutrientsPage } from '@/pages/NutrientsPage'
+export { YieldPage } from '@/pages/YieldPage'
+export { FederatedPage } from '@/pages/FederatedPage'
+export { AnalyticsPage, ReportPage } from '@/pages/AnalyticsPage'
+export { AlertsPage } from '@/pages/AlertsPage'
+export { FarmsPage, FarmSettingsPage } from '@/pages/FarmsPage'
+export { GrowthPage } from '@/pages/GrowthPage'

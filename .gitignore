@@ -1,0 +1,24 @@
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+node_modules
+supabase/signing_keys.json
+supabase/.temp
+supabase/.branches
+
+# Downloaded model weights (fetch with backend/scripts/fetch_models.py)
+backend/ml_models/*.onnx
+
+# Uploaded images (Phase 9)
+backend/uploads/
+
+# Test outputs (Phase 18)
+coverage/
+frontend/coverage/
+backend/.coverage
+backend/htmlcov/
+frontend/playwright-report/
+frontend/test-results/
+frontend/e2e/.auth/

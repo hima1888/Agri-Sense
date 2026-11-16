@@ -1,0 +1,130 @@
+@import 'tailwindcss';
+
+/*
+ * AGRI-SENSE design tokens
+ * Natural + scientific palette: forest ink, moss, sage, loam, wheat, sky, water.
+ * Kept deliberately desaturated — no neon. Accent colours are used sparingly.
+ */
+@theme {
+  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  --color-ink-950: #08100c;
+  --color-ink-900: #0d1712;
+  --color-ink-800: #14221a;
+  --color-ink-700: #1d3025;
+  --color-ink-600: #2a4232;
+
+  --color-moss-300: #b5d3a1;
+  --color-moss-400: #8fbf7a;
+  --color-moss-500: #6a9f58;
+  --color-moss-600: #4f7f43;
+
+  --color-sage-100: #e9eee4;
+  --color-sage-200: #d3dccb;
+  --color-sage-300: #b4c2aa;
+  --color-sage-400: #8e9e86;
+
+  --color-wheat-200: #efe4c2;
+  --color-wheat-300: #e2cf98;
+  --color-wheat-400: #d8c48a;
+
+  --color-loam-400: #a5845e;
+  --color-loam-500: #8a6a4a;
+
+  --color-sky-200: #cfe3ea;
+  --color-sky-300: #9cc7d8;
+  --color-water-400: #5fa3bf;
+  --color-water-500: #3b82a0;
+
+  --color-paper: #f4f1e8;
+
+  --color-signal-ok: #8fbf7a;
+  --color-signal-warn: #e2b35c;
+  --color-signal-alert: #d9785f;
+
+  --ease-natural: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-drift: drift 90s linear infinite;
+  --animate-drift-slow: drift 140s linear infinite;
+  --animate-sway: sway 6s ease-in-out infinite;
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+
+  @keyframes drift {
+    from { transform: translateX(-30%); }
+    to { transform: translateX(130%); }
+  }
+  @keyframes sway {
+    0%, 100% { transform: skewX(0deg); }
+    50% { transform: skewX(-4deg); }
+  }
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 0.45; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-ink-900 text-sage-100 font-sans;
+    min-height: 100dvh;
+  }
+  ::selection {
+    @apply bg-moss-500/40 text-paper;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-wheat-300);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply border border-white/8 bg-ink-800/55 backdrop-blur-md;
+    box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 20px 40px -24px rgb(0 0 0 / 0.6);
+  }
+  .eyebrow {
+    @apply font-mono text-[0.7rem] uppercase tracking-[0.22em] text-sage-400;
+  }
+}
+
+/* Respect users who prefer reduced motion: stop all decorative CSS animation. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Printing a report (browser "Save as PDF"): plain black on white, no app chrome. */
+@media print {
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .print-sheet,
+  .print-sheet * {
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #999 !important;
+    box-shadow: none !important;
+  }
+  .print-sheet section {
+    break-inside: avoid;
+  }
+}

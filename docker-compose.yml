@@ -1,0 +1,21 @@
+# Local development/test database only. Production uses Supabase Postgres.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: agri-sense-db
+    environment:
+      POSTGRES_USER: agrisense
+      POSTGRES_PASSWORD: agrisense_local_dev
+      POSTGRES_DB: agrisense
+    ports:
+      - "54329:5432"
+    volumes:
+      - agri-sense-db:/var/lib/postgresql/data
+      - ./backend/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agrisense -d agrisense"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  agri-sense-db:

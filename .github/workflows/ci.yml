@@ -1,0 +1,73 @@
+# Runs on every push and pull request once this repository is on GitHub.
+# End-to-end (Playwright) tests stay local: they need the Supabase Auth stack and the E2E account.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: agrisense
+          POSTGRES_PASSWORD: agrisense_local_dev
+          POSTGRES_DB: agrisense_test
+        ports: ["54329:5432"]
+        options: >-
+          --health-cmd "pg_isready -U agrisense -d agrisense_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://agrisense:agrisense_local_dev@127.0.0.1:54329/agrisense_test
+      DATABASE_URL: postgresql://agrisense:agrisense_local_dev@127.0.0.1:54329/agrisense_test
+      SUPABASE_URL: http://auth.test.invalid
+      SIMULATOR_ENABLED: "false"
+      ALERTS_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      # Produce-recognition model from the ONNX Model Zoo (checksum-verified). The two disease models are
+      # converted locally (scripts/convert_disease_models.py) and are not downloaded here: tests that need
+      # them are skipped in CI and run locally.
+      - run: python -m app.cli.fetch_models
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy app
+      - run: alembic upgrade head && alembic check
+      - run: pytest -q -o addopts="" --cov --cov-report=term --cov-fail-under=90
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc -b --noEmit
+      - run: npm run test:coverage
+      - run: npm run build
