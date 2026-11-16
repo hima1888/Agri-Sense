@@ -1,3 +1,4 @@
+import { DemoNote } from '@/components/ui/demo-note'
 import { useState } from 'react'
 import { localDate, localDateDaysAgo } from '@/lib/dates'
 import { Link, useParams, useSearchParams } from 'react-router'
@@ -59,7 +60,7 @@ function FarmAnalytics({ farmId, start, end }: { farmId: number; start: string; 
       {a.error && <FormAlert>{a.error.message}</FormAlert>}
       {a.data && (
         <>
-          {a.data.uses_simulated_data && <FormAlert>This period includes <strong>SIMULATED</strong> sensor data ({Math.round((a.data.data?.simulated_share ?? 0) * 100)} % of readings).</FormAlert>}
+          {a.data.uses_simulated_data && <DemoNote>This period includes <strong>simulated</strong> sensor data ({Math.round((a.data.data?.simulated_share ?? 0) * 100)} % of readings).</DemoNote>}
           <Card title="Sustainability indicators">
             <IndicatorTable indicators={a.data.indicators} previous={a.data.previous_period} />
           </Card>
@@ -128,7 +129,7 @@ export function ReportPage() {
       <p className="eyebrow">AGRI-SENSE report · {r.report_type.replace('_', ' ')}</p>
       <h1 className="mt-2 font-display text-3xl text-paper">{r.title}</h1>
       <p className="mt-1 text-sm text-sage-300">{c.farm_name} · {r.period_start} to {r.period_end}{c.area_ha != null && ` · ${c.area_ha} ha`} · saved {new Date(r.created_at).toLocaleString()}</p>
-      {c.uses_simulated_data && <p className="mt-3 text-sm font-medium text-signal-warn">Includes SIMULATED sensor data.</p>}
+      {c.uses_simulated_data && <p className="mt-3 text-sm text-sage-400">Includes <strong>simulated</strong> sensor data (demo mode).</p>}
       <div className="mt-6 space-y-5">
         {c.indicators && <Card title="Sustainability indicators"><IndicatorTable indicators={c.indicators} previous={c.previous_period} /></Card>}
         <Sections a={c} />

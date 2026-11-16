@@ -203,6 +203,13 @@ def _growth(crop: Crop, cycle_days: int | None, source: str) -> dict[str, Any]:
     return {**model, "crop_id": crop.id, "cycle_days_source": source}
 
 
+@router.get("/growth/crops", response_model=list[CropRead], tags=["crops"])
+def growth_crops(_: CurrentUser, db: DbSession) -> list[Crop]:
+    """Catalogue crops that have growth-stage data (annual crops with FAO-56 stage lengths)."""
+    crops = db.scalars(select(Crop).order_by(Crop.common_name))
+    return [c for c in crops if growth.crop_key(c.common_name) in growth.FAO56_STAGE_DAYS]
+
+
 @router.get("/crops/{crop_id}/growth", response_model=CropGrowth, tags=["crops"])
 def crop_growth(crop_id: int, _: CurrentUser, db: DbSession) -> dict[str, Any]:
     """Growth stages for a crop, scaled to its typical cycle length in the catalogue."""

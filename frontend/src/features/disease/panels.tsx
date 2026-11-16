@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import { useState, type FormEvent } from 'react'
 import { FormAlert, SubmitButton } from '@/components/ui/form'
 import { Pill, type Tone } from '@/components/ui/primitives'
@@ -35,7 +36,12 @@ export function ScreeningResult({ r }: { r: Screening }) {
           {r.confidence != null && ` · model confidence ${pct(r.confidence)}`}
           {r.margin != null && ` · margin ${(r.margin * 100).toFixed(1)} pts`}
         </p>
-        <p className="mt-1 text-xs text-sage-400">{r.saved ? 'Saved to disease-check history.' : 'Not saved.'}</p>
+        <p className="mt-1 text-xs text-sage-400">
+          {r.saved ? 'Saved to disease-check history.' : 'Not saved.'}
+          {r.saved && r.detection_id != null && (
+            <> <Link to={`/vision/disease-checks/${r.detection_id}/report`} className="ml-1 font-medium text-wheat-300 hover:underline">Open full report (PDF)</Link></>
+          )}
+        </p>
       </div>
 
       {r.outcome === 'possible_disease' && (
@@ -103,6 +109,7 @@ function HistoryRow({ d, farmId, zoneName }: { d: DiseaseRecord; farmId: number;
         <p className="text-sage-400">{outcome.replaceAll('_', ' ')} · {pct(d.confidence)}{zoneName ? ` · ${zoneName}` : ''}</p>
         {model && <p className="text-sage-400">{model}</p>}
         <p className="text-sage-400">{new Date(d.detected_at).toLocaleString()}</p>
+        <Link to={`/vision/disease-checks/${d.id}/report`} className="block text-wheat-300 hover:underline">Full report (PDF)</Link>
         {d.knowledge_key && outcome === 'possible_disease' && <KnowledgeToggle k={d.knowledge_key} />}
         <button type="button" className="mt-1.5 text-signal-alert/80 hover:text-signal-alert disabled:opacity-50" disabled={del.isPending} onClick={() => del.mutate(d.id)}>Delete</button>
       </div>
@@ -139,7 +146,7 @@ export function DiseaseSection({ farmId, zones }: { farmId: number; zones: ZoneD
     <div className="space-y-5">
       <div className="grid gap-5 lg:grid-cols-5">
         <Card title="Leaf disease check" className="lg:col-span-2">
-          <FormAlert>Screening aid only, not a diagnosis. In testing, neither model identified any field photo correctly; confirm with an agronomist before any treatment.</FormAlert>
+          <p className="rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-sage-200">A first screening, not a diagnosis: confirm with an agronomist before any treatment. The models were trained on lab photos, so accuracy on field photos is limited (see <em>About the disease models</em>).</p>
           <form onSubmit={submit} className="mt-4 space-y-4" aria-label="Check a leaf for disease">
             <label className="block text-sm text-sage-200">
               Photo of one leaf

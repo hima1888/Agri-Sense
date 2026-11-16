@@ -99,7 +99,7 @@ def test_simulated_inputs_are_flagged() -> None:
         r.generate(ctx([zone({"water": water("stress", moisture_src="sensors (simulated)")})], hours())),
         "irrigate_now",
     )
-    assert rec["uses_simulated_data"] and "SIMULATED" in rec["limitations"][0]
+    assert rec["uses_simulated_data"] and "simulated" in rec["limitations"][0]
 
 
 def test_no_forecast_lowers_confidence() -> None:

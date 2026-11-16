@@ -1,3 +1,4 @@
+import { DemoNote } from '@/components/ui/demo-note'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { FormAlert } from '@/components/ui/form'
@@ -57,7 +58,7 @@ function ZoneSoil({ zoneId }: { zoneId: number }) {
   return (
     <div className="mt-8 space-y-5">
       {a.uses_simulated_data && (
-        <FormAlert>Part of this assessment uses <strong>SIMULATED</strong> sensor data. Treat it as a demonstration, not a reading of real soil.</FormAlert>
+        <DemoNote>Part of this assessment uses readings from the built-in <strong>simulated</strong> sensors.</DemoNote>
       )}
       <Card
         title={`${a.zone_name}${a.crop ? ` · ${a.crop.name}` : ''}`}

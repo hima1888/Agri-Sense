@@ -309,7 +309,7 @@ def analytics(db: Session, farm: Farm, start: date, end: date) -> dict[str, Any]
         "Figures come only from records in AGRI-SENSE; anything not logged here (e.g. a spray recorded on paper) is missing.",
         "Rain and ET0 come from stored Open-Meteo hourly data and cover only days the app fetched weather.",
         "Water-stress hours use each zone's current soil and crop parameters for the whole period.",
-    ] + (["Includes SIMULATED sensor data."] if cur["uses_simulated_data"] else [])
+    ] + (["Demo mode: includes simulated sensor data."] if cur["uses_simulated_data"] else [])
     return cur
 
 

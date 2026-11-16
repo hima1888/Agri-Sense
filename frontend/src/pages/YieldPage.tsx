@@ -1,3 +1,4 @@
+import { DemoNote } from '@/components/ui/demo-note'
 import { useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import { FormAlert, SubmitButton, TextField } from '@/components/ui/form'
@@ -66,7 +67,7 @@ function ZoneYield({ zoneId }: { zoneId: number }) {
   const btn = 'rounded-full border border-white/10 px-3 py-1.5 text-xs text-sage-200 hover:border-white/25 disabled:opacity-50'
   return (
     <div className="mt-8 space-y-5">
-      {e.uses_simulated_data && <FormAlert>The moisture history here is <strong>SIMULATED</strong>. The estimate demonstrates the method; it says nothing about a real harvest.</FormAlert>}
+      {e.uses_simulated_data && <DemoNote>The moisture history comes from the built-in <strong>simulated</strong> sensors, so the estimate shows how the model works on that data.</DemoNote>}
       <Card
         title={`${e.zone_name}${e.crop ? ` · ${e.crop}` : ''}`}
         action={e.cycle_id != null && (

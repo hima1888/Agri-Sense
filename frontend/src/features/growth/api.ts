@@ -34,13 +34,11 @@ export const GrowthSchema = z.object({
 })
 export type CropGrowth = z.infer<typeof GrowthSchema>
 
-const CropPage = z.object({
-  total: num,
-  items: z.array(z.object({ id: num, common_name: z.string(), category: z.string(), typical_cycle_days: num.nullable() })),
-})
+const CropList = z.array(z.object({ id: num, common_name: z.string(), category: z.string(), typical_cycle_days: num.nullable() }))
 
 export function useCrops() {
-  return useQuery({ queryKey: ['crops'], queryFn: ({ signal }) => apiGet('/crops?limit=100', CropPage, { signal }), staleTime: 5 * 60_000 })
+  // Only crops with growth-stage data: the API leaves out perennials such as banana and mango.
+  return useQuery({ queryKey: ['growth-crops'], queryFn: ({ signal }) => apiGet('/growth/crops', CropList, { signal }), staleTime: 5 * 60_000 })
 }
 
 /** Stages for a zone's crop cycle (with today's position) or, without a cycle, for the crop itself. */

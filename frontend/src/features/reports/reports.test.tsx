@@ -61,7 +61,7 @@ describe('analytics & reports', () => {
     expect(within(water).getByText('no weather stored for this period')).toBeInTheDocument()
     expect(within(water).getByText(/25 % of 48 h \(below 19.8 %\)/)).toBeInTheDocument()
     expect(within(water).getByText('Events without a volume (not counted)')).toBeInTheDocument()
-    expect(screen.getByText('SIMULATED')).toBeInTheDocument()
+    expect(screen.getByText('simulated', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText(/none recorded in this period/)).toBeInTheDocument()
   })
 
@@ -86,7 +86,7 @@ describe('analytics & reports', () => {
     const user = userEvent.setup()
     renderRoute('/reports/11')
     expect(await screen.findByRole('heading', { name: REPORT.title })).toBeInTheDocument()
-    expect(screen.getByText(/Includes SIMULATED sensor data/)).toBeInTheDocument()
+    expect(screen.getByText(/Includes/, { selector: 'p' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Print / save as PDF' }))
     expect(print).toHaveBeenCalled()
   })

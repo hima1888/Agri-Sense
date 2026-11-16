@@ -579,10 +579,7 @@ def assess(db: Session, zone: FarmZone, now: datetime | None = None) -> dict[str
     simulated = any(s.simulated for s in inp.sensors.values())
     if simulated:
         reasons.append("uses simulated sensor data")
-        limitations.append(
-            "Includes SIMULATED sensor data: this demonstrates the method and must not be "
-            "used for field decisions."
-        )
+        limitations.append("Demo mode: includes simulated sensor data.")
     if not_assessed:
         reasons.append("not assessed: " + ", ".join(LABELS[k].lower() for k in not_assessed))
     if inp.sensors.get("nitrogen") and not (inp.lab and inp.lab.nitrogen_mg_kg is not None):

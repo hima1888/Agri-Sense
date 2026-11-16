@@ -23,3 +23,4 @@ export const ReportPage = named(() => import('@/pages/AnalyticsPage'), 'ReportPa
 export const AlertsPage = named(() => import('@/pages/AlertsPage'), 'AlertsPage')
 export const FarmsPage = named(() => import('@/pages/FarmsPage'), 'FarmsPage')
 export const FarmSettingsPage = named(() => import('@/pages/FarmsPage'), 'FarmSettingsPage')
+export const DiseaseReportPage = named(() => import('@/pages/DiseaseReportPage'), 'DiseaseReportPage')

@@ -113,12 +113,16 @@ export function GrowthPage() {
   const [params, setParams] = useSearchParams()
   const farmId = farms.data?.items.find((f) => f.id === Number(params.get('farm')))?.id ?? farms.data?.items[0]?.id ?? null
   const twin = useTwin(farmId)
-  const cycles = (twin.data?.zones ?? []).filter((z) => z.crop).map((z) => ({ zone: z.name, ...z.crop! }))
-  const pick = params.get('pick') ?? (cycles[0] ? `cycle:${cycles[0].cycle_id}` : crops.data?.items[0] ? `crop:${crops.data.items[0].id}` : null)
+  const supported = new Set((crops.data ?? []).map((c) => c.common_name))
+  const cycles = (twin.data?.zones ?? []).filter((z) => z.crop && supported.has(z.crop.crop_name)).map((z) => ({ zone: z.name, ...z.crop! }))
+  const first = cycles[0] ? `cycle:${cycles[0].cycle_id}` : crops.data?.[0] ? `crop:${crops.data[0].id}` : null
+  const requested = params.get('pick')
+  const valid = (p: string) => p.startsWith('cycle:') ? cycles.some((c) => `cycle:${c.cycle_id}` === p) : (crops.data ?? []).some((c) => `crop:${c.id}` === p)
+  const pick = requested && valid(requested) ? requested : first
   const [kind, idText] = pick?.split(':') ?? []
   const target = kind === 'cycle' ? { cycleId: Number(idText) } : kind === 'crop' ? { cropId: Number(idText) } : null
   const growth = useGrowth(target)
-  const category = kind === 'cycle' ? cycles.find((c) => c.cycle_id === Number(idText))?.category : crops.data?.items.find((c) => c.id === Number(idText))?.category
+  const category = kind === 'cycle' ? cycles.find((c) => c.cycle_id === Number(idText))?.category : crops.data?.find((c) => c.id === Number(idText))?.category
 
   if (farms.isPending || crops.isPending) return <FullPageSpinner />
   if (farms.isError) return <div className="mx-auto max-w-3xl px-4 py-16"><FormAlert>{farms.error.message}</FormAlert></div>
@@ -143,17 +147,17 @@ export function GrowthPage() {
               </optgroup>
             )}
             <optgroup label="Crop catalogue">
-              {(crops.data?.items ?? []).map((c) => <option key={c.id} value={`crop:${c.id}`}>{c.common_name}</option>)}
+              {(crops.data ?? []).map((c) => <option key={c.id} value={`crop:${c.id}`}>{c.common_name}</option>)}
             </optgroup>
           </select>
         </div>
       </div>
 
       <div className="mt-8">
-        {!target && <Card title="No crops"><p className="text-sm text-sage-400">The crop catalogue is empty. Seed it with <code>python -m app.cli.seed</code>.</p></Card>}
+        {!target && <Card title="Crop growth"><p className="text-sm text-sage-400">Add a crop to one of your zones to see its growth stages here.</p></Card>}
         {target && growth.isPending && <p className="text-sm text-sage-400" role="status">Loading growth stages…</p>}
         {growth.isError && (
-          <Card title="Not available for this crop">
+          <Card title="Could not load growth stages">
             <FormAlert>{growth.error.message}</FormAlert>
           </Card>
         )}

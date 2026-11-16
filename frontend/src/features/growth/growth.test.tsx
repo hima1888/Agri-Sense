@@ -28,13 +28,13 @@ const GROWTH = {
   method: 'FAO-56 Table 11 stage proportions scaled to the cycle length.',
   limitations: ['Calendar estimates.'],
 }
-const CROPS = { total: 2, items: [{ id: 4, common_name: 'Tomato', category: 'vegetable', typical_cycle_days: 110 }, { id: 5, common_name: 'Mango', category: 'fruit', typical_cycle_days: null }] }
+const CROPS = [{ id: 4, common_name: 'Tomato', category: 'vegetable', typical_cycle_days: 110 }]
 
 function mockApi(growth: object | { error: string }) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
     const url = String(input)
     if (url.includes('/farms?limit=100')) return jsonResponse({ total: 1, items: [FARM] })
-    if (url.includes('/crops?limit=100')) return jsonResponse(CROPS)
+    if (url.includes('/growth/crops')) return jsonResponse(CROPS)
     if (url.includes('/twin')) return jsonResponse({ error: { code: 'not_found', message: 'n/a', details: null } }, 404)
     if (url.includes('/growth')) {
       return 'error' in growth ? jsonResponse({ error: { code: 'invalid', message: growth.error, details: null } }, 422) : jsonResponse(growth)
@@ -52,14 +52,14 @@ afterEach(() => vi.useRealTimers())
 describe('crop growth', () => {
   it('shows the stages from the API, starts at today, and plays through them', async () => {
     const spy = mockApi(GROWTH)
-    renderRoute('/growth?pick=cycle:9')
+    renderRoute('/growth?pick=crop:4')
     const stages = await screen.findByRole('list', { name: 'Growth stages' })
     expect(within(stages).getAllByRole('button')).toHaveLength(8)
     expect(within(stages).getByText('today')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Tomato at the vegetative stage' })).toBeInTheDocument()
     expect(screen.getByText(/Days 25–57/)).toBeInTheDocument()
     expect(screen.getByText(/today is day 50/)).toBeInTheDocument()
-    expect(spy.mock.calls.some(([u]) => String(u).includes('/crop-cycles/9/growth'))).toBe(true)
+    expect(spy.mock.calls.some(([u]) => String(u).includes('/crops/4/growth'))).toBe(true)
 
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
@@ -72,11 +72,12 @@ describe('crop growth', () => {
     expect(screen.getByRole('img', { name: 'Tomato at the harvest stage' })).toBeInTheDocument()
   })
 
-  it('explains an unsupported crop instead of drawing anything', async () => {
-    mockApi({ error: 'Mango is perennial; the FAO-56 annual stage model does not apply. Not modelled.' })
-    renderRoute('/growth?pick=crop:5')
-    expect(await screen.findByText(/Mango is perennial/)).toBeInTheDocument()
-    expect(screen.queryByRole('list', { name: 'Growth stages' })).not.toBeInTheDocument()
+  it('lists only crops that have growth data', async () => {
+    mockApi(GROWTH)
+    renderRoute('/growth?pick=crop:5') // an unsupported or unknown crop in the URL falls back to a supported one
+    const select = await screen.findByLabelText('Crop')
+    expect(within(select).queryByText('Mango')).not.toBeInTheDocument()
+    expect(await screen.findByRole('list', { name: 'Growth stages' })).toBeInTheDocument()
   })
 })
 

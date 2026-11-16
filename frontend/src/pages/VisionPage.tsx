@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { FormAlert, SubmitButton } from '@/components/ui/form'
 import { FullPageSpinner } from '@/features/auth/RequireAuth'
 import { useFarmList, useZoneList } from '@/features/dashboard/api'
@@ -81,6 +81,10 @@ function FarmVision({ farmId }: { farmId: number }) {
     <div className="space-y-5">
       <div className="grid gap-5 lg:grid-cols-5">
         <Card title="Photo" className="lg:col-span-2">
+          <p className="mb-4 rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-sage-200">
+            Identifies <strong>which</strong> fruit or vegetable is in the photo (25 types); it does not check for disease.
+            To check a plant for disease, use the <Link to="/vision?tab=disease" className="text-wheat-300 hover:underline">Leaf disease check</Link> with a photo of a leaf.
+          </p>
           <form onSubmit={submit} className="space-y-4" aria-label="Recognise a photo">
             <label className="block text-sm text-sage-200">
               Photo of a fruit, vegetable or crop

@@ -70,7 +70,7 @@ describe('soil page', () => {
     expect(await screen.findByRole('heading', { name: 'North Field · Tomato' })).toBeInTheDocument()
     expect(screen.getByText('58')).toBeInTheDocument()
     expect(screen.getByText('Confidence 42 %')).toBeInTheDocument()
-    expect(screen.getByText(/SIMULATED/, { selector: 'strong' })).toBeInTheDocument()
+    expect(screen.getByText('simulated', { selector: 'strong' })).toBeInTheDocument()
 
     const table = screen.getByRole('region', { name: 'Nutrients, pH and salinity' })
     expect(within(table).getByText('NPK probe 24 h mean (simulated)')).toBeInTheDocument()

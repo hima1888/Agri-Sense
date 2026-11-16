@@ -1,3 +1,4 @@
+import { DemoNote } from '@/components/ui/demo-note'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -63,7 +64,7 @@ function ZoneIrrigation({ zoneId }: { zoneId: number }) {
 
   return (
     <div className="mt-8 space-y-5">
-      {p.uses_simulated_data && <FormAlert>Soil moisture here comes from <strong>SIMULATED</strong> sensors. The plan demonstrates the method; do not irrigate a real field from it.</FormAlert>}
+      {p.uses_simulated_data && <DemoNote>Soil moisture comes from the built-in <strong>simulated</strong> sensors; the plan shows how irrigation would be scheduled from them.</DemoNote>}
       <Card title={`${p.zone_name}${p.crop ? ` · ${p.crop}` : ''}`} action={<Pill tone={s.tone}>{s.label}</Pill>}>
         {p.water ? (
           <div className="grid gap-4 sm:grid-cols-4 text-sm">

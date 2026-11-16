@@ -1,3 +1,4 @@
+import { DemoNote } from '@/components/ui/demo-note'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { FormAlert } from '@/components/ui/form'
@@ -58,7 +59,7 @@ function FarmAdvice({ farmId }: { farmId: number }) {
         </button>
       </div>
       {gen.error && <FormAlert>{gen.error.message}</FormAlert>}
-      {gen.data?.uses_simulated_data && <FormAlert>Some advice below uses <strong>SIMULATED</strong> sensor data. It demonstrates the method; do not act on it in a real field.</FormAlert>}
+      {gen.data?.uses_simulated_data && <DemoNote>Sensor readings on this farm come from the built-in <strong>simulated</strong> sensors, so this advice shows how the system responds to them.</DemoNote>}
       {gen.data && gen.data.forecast_hours === 0 && <FormAlert>No stored weather forecast: open the dashboard to fetch weather, then refresh. Irrigation timing is less certain without it.</FormAlert>}
       {gen.isPending && !gen.data && <FullPageSpinner />}
       {gen.data && (gen.data.recommendations.length ? (

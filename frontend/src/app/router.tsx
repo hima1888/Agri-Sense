@@ -19,6 +19,7 @@ import {
   VisionPage,
   YieldPage,
   GrowthPage,
+  DiseaseReportPage,
 } from './lazy-pages'
 import { AccountPage } from '@/pages/AccountPage'
 import { LoginPage, SignupPage } from '@/pages/AuthPages'
@@ -54,6 +55,7 @@ export const routes: RouteObject[] = [
       { path: 'nutrients', element: guarded(<NutrientsPage />) },
       { path: 'yield', element: guarded(<YieldPage />) },
       { path: 'growth', element: guarded(<GrowthPage />) },
+      { path: 'vision/disease-checks/:checkId/report', element: guarded(<DiseaseReportPage />) },
       { path: 'federated', element: guarded(<FederatedPage />) },
       { path: 'analytics', element: guarded(<AnalyticsPage />) },
       { path: 'alerts', element: guarded(<AlertsPage />) },

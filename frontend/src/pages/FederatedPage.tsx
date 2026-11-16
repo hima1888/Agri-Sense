@@ -1,3 +1,4 @@
+import { DemoNote } from '@/components/ui/demo-note'
 import { useSearchParams } from 'react-router'
 import { FormAlert } from '@/components/ui/form'
 import { Pill } from '@/components/ui/primitives'
@@ -63,7 +64,7 @@ function FarmFederated({ farmId }: { farmId: number }) {
           <p className="text-sage-200">Shared with the federation: <span className="text-paper">{v.shared}</span>.</p>
           <p className="text-sage-200">Never shared: <span className="text-paper">{v.not_shared}</span>.</p>
           <p className="text-xs text-sage-400">The model learns how soil moisture changes over the next 6 hours from on-farm sensors. Each farm trains on its own data; only model weights are averaged (FedAvg).</p>
-          {v.uses_simulated_data && <FormAlert>This farm's sensor data is <strong>SIMULATED</strong>. Training on it demonstrates the method only.</FormAlert>}
+          {v.uses_simulated_data && <DemoNote>This farm's sensor data comes from the built-in <strong>simulated</strong> sensors.</DemoNote>}
           {enrollment.error && <FormAlert>{enrollment.error.message}</FormAlert>}
         </div>
       </Card>
@@ -128,7 +129,7 @@ function LatestRun({ run }: { run: FlRun }) {
             <ul className="mt-1 text-xs text-sage-300">{run.explanation.slice(0, 4).map((f) => <li key={f.feature}>{FEATURE[f.feature] ?? f.feature}: {f.weight > 0 ? '+' : ''}{f.weight}</li>)}</ul>
           </div>
         )}
-        {run.uses_simulated_data && <p className="text-xs text-signal-warn">Trained partly on SIMULATED data.</p>}
+        {run.uses_simulated_data && <p className="text-xs text-sage-400">Trained partly on <strong>simulated</strong> sensor data (demo mode).</p>}
       </div>
     </Card>
   )

@@ -92,9 +92,7 @@ def zone_plan(db: Session, zone: FarmZone, now: datetime | None = None) -> dict[
         e["already_scheduled"] = e["date"].isoformat() in scheduled_dates
     saved_mm = round(max(0.0, ignoring_rain["total_gross_mm"] - p["total_gross_mm"]), 1)
     if a["uses_simulated_data"]:
-        base["limitations"].insert(
-            0, "Moisture comes from SIMULATED sensors: the plan demonstrates the method only."
-        )
+        base["limitations"].insert(0, "Demo mode: soil moisture comes from simulated sensors.")
     if not area:
         base["limitations"].append(
             "Zone area unknown: amounts are in mm only. Add the area in zone settings."

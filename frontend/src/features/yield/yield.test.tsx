@@ -54,7 +54,7 @@ describe('yield page', () => {
     expect(within(card).getByText(/moisture measured on 3 of 31 days/)).toBeInTheDocument()
     expect(within(card).getByText(/FAO Irrigation and Drainage Paper 33/)).toBeInTheDocument()
     expect(within(card).getByText(/15 % below attainable/)).toBeInTheDocument()
-    expect(screen.getByText('SIMULATED')).toBeInTheDocument()
+    expect(screen.getByText('simulated', { selector: 'strong' })).toBeInTheDocument()
     expect(await screen.findByText(/accuracy of these estimates on this farm is unknown/)).toBeInTheDocument()
   })
 

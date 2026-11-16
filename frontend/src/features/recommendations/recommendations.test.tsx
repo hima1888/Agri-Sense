@@ -54,7 +54,7 @@ describe('recommendations page', () => {
     const card = await screen.findByRole('listitem', { name: IRRIGATE.title })
     expect(within(card).getByText('high')).toBeInTheDocument()
     expect(within(card).getByText(/Confidence 76 % \(data confidence 0.80 x rule certainty 0.95\)/)).toBeInTheDocument()
-    expect(screen.getByText('SIMULATED')).toBeInTheDocument()
+    expect(screen.getByText('simulated', { selector: 'strong' })).toBeInTheDocument()
     const items = screen.getAllByRole('listitem').filter((li) => li.getAttribute('aria-label'))
     expect(items.map((li) => li.getAttribute('aria-label'))).toEqual([IRRIGATE.title, SOIL_TEST.title])
 

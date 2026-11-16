@@ -47,6 +47,14 @@ test('TEST 1+4: a diseased leaf photo goes through the real model; the result an
     await expect(about.getByText('Phytophthora infestans')).toBeVisible()
     await expect(about.getByText('When to seek expert advice')).toBeVisible()
     await expect(result.getByText('Saved to disease-check history.')).toBeVisible()
+
+    // The downloadable report, built from the saved record and the knowledge base.
+    await result.getByRole('link', { name: 'Open full report (PDF)' }).click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Tomato: Late blight' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /How to overcome it: action plan/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Download PDF' })).toBeVisible()
+    const pdf = await page.pdf({ format: 'A4' }) // what "Save as PDF" produces
+    expect(pdf.byteLength).toBeGreaterThan(20_000)
   } finally {
     if (id != null) expect((await page.request.delete(`${API}/vision/disease-checks/${id}`, { headers: { Authorization: `Bearer ${await token(page)}` } })).status()).toBe(204)
   }

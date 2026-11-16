@@ -171,7 +171,7 @@ def test_simulated_sensor_assessment_is_labelled_and_low_confidence(
     assert set(a["not_assessed"]) == {"organic_carbon", "salinity"}
     assert a["confidence"] < 0.5
     assert "uses simulated sensor data" in a["confidence_reasons"]
-    assert any("SIMULATED" in lim for lim in a["limitations"])
+    assert any("simulated" in lim for lim in a["limitations"])
     assert any("NPK probes" in lim for lim in a["limitations"])
 
 

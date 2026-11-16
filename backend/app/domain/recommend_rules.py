@@ -87,7 +87,7 @@ def _rec(
     simulated = any(f["simulated"] for f in factors)
     lims = list(limitations)
     if simulated:
-        lims.insert(0, "Based partly on SIMULATED sensor data: a demonstration, not advice for a real field.")
+        lims.insert(0, "Demo mode: based partly on simulated sensor data.")
     conf = round(max(0.0, min(1.0, data_conf * RULE_CERTAINTY[rule])), 2)
     return {
         # One stored recommendation per (zone, rule[:variant]); the variant separates e.g. N from K.

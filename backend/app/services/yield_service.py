@@ -135,7 +135,7 @@ def zone_estimate(db: Session, zone: FarmZone, now: datetime | None = None) -> d
                                   daily_ks=ks_by_day, cw=cw, ym_kg_ha=ym, ym_source=ym_source)  # fmt: skip
     if simulated:
         result.setdefault("limitations", []).insert(
-            0, "Moisture history comes from SIMULATED sensors: the estimate demonstrates the method only."
+            0, "Demo mode: the moisture history comes from simulated sensors."
         )
         result["confidence"] = round(result.get("confidence", 0) * 0.5, 2)
     if result["status"] == "estimate" and area:

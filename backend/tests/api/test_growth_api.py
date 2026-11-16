@@ -82,3 +82,10 @@ def test_endpoints(api: TestClient, admin: TestClient) -> None:
     cg = ok(api.get(f"{V1}/crop-cycles/{cyc['id']}/growth"))
     assert cg["cycle_days"] == 120 and cg["cycle_days_source"] == "crop cycle dates"
     assert cg["current"]["day"] == 50 and cg["current"]["stage_key"] == "vegetative"
+
+
+def test_growth_crop_list_has_only_crops_with_stage_data(api: TestClient, admin: TestClient) -> None:
+    for name, cat in (("Tomato", "vegetable"), ("Banana", "fruit"), ("Maize", "cereal"), ("Mango", "fruit")):
+        ok(admin.post(f"{V1}/crops", json={"common_name": name, "category": cat}), 201)
+    names = [c["common_name"] for c in ok(api.get(f"{V1}/growth/crops"))]
+    assert names == ["Maize", "Tomato"]  # perennials (banana, mango) are left out

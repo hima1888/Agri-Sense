@@ -56,7 +56,7 @@ describe('federated learning page', () => {
     const part = await screen.findByRole('region', { name: 'Participation' })
     expect(within(part).getByText(/model weights, sample count and local error metrics only/)).toBeInTheDocument()
     expect(within(part).getByText(/sensor readings, features, zone names, locations/)).toBeInTheDocument()
-    expect(within(part).getByText('SIMULATED')).toBeInTheDocument()
+    expect(within(part).getByText('simulated')).toBeInTheDocument()
     const latest = screen.getByRole('region', { name: 'Latest model · run 4' })
     expect(within(latest).getByText(/NOT more accurate than assuming no change/)).toBeInTheDocument()
     expect(within(latest).getByText(/Time of day \(sin\): -0.83/)).toBeInTheDocument()

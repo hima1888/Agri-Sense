@@ -57,7 +57,7 @@ describe('irrigation page', () => {
     expect(within(planned).getByText(`38.8 mm gross (34.9 mm net) · ${(194000).toLocaleString()} L`)).toBeInTheDocument() // host locale grouping
     expect(within(planned).getByText(/past the 36.4 mm stress threshold/)).toBeInTheDocument()
     expect(within(planned).getByText((t) => t.includes(`avoids an estimated 7.7 mm (${(38500).toLocaleString()} L)`))).toBeInTheDocument()
-    expect(screen.getByText('SIMULATED')).toBeInTheDocument()
+    expect(screen.getByText('simulated', { selector: 'strong' })).toBeInTheDocument()
     expect(screen.getByText('deferred')).toBeInTheDocument()
     const use = screen.getByRole('region', { name: 'Water use' })
     expect(await within(use).findByText(/1 event\(s\) have no volume/)).toBeInTheDocument()
