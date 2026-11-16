@@ -23,6 +23,22 @@ def get_optional_engine(settings: SettingsDep) -> Engine | None:
 EngineDep = Annotated[Engine | None, Depends(get_optional_engine)]
 
 
+def inference_status() -> ServiceStatus:
+    """Which ONNX models are installed (files present); they load on first use."""
+    from app.vision import disease, recognizer
+
+    names = (["produce recognition"] if recognizer.model_available() else []) + [
+        m.name for m in disease.MODELS.values() if disease.model_available(m)
+    ]
+    total = 1 + len(disease.MODELS)
+    if not names:
+        return ServiceStatus(key="inference", label="Model inference (ONNX Runtime)", state="not_configured",
+                             detail="No model files installed.")  # fmt: skip
+    state: ServiceState = "ok" if len(names) == total else "degraded"
+    detail = f"{len(names)} of {total} models installed: {', '.join(names)}."
+    return ServiceStatus(key="inference", label="Model inference (ONNX Runtime)", state=state, detail=detail)
+
+
 def auth_status(settings: Settings) -> tuple[ServiceState, str]:
     """Live check: can we load the token signing keys that sign-ins will be verified against?"""
     if settings.jwks_url:
@@ -140,8 +156,6 @@ def system_info(request: Request, settings: SettingsDep, engine: EngineDep) -> S
                 detail=f"{broadcaster.subscriber_count} live connection(s).",
             ),
             weather_service(engine),
-            ServiceStatus(
-                key="inference", label="Model inference (ONNX Runtime)", state="planned", detail="Phase 9+."
-            ),
+            inference_status(),
         ],
     )

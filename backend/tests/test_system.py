@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
@@ -76,3 +77,18 @@ def test_openapi_served_under_prefix(make_client: ClientFactory) -> None:
     res = make_client().get("/api/v1/openapi.json")
     assert res.status_code == 200
     assert "/api/v1/health" in res.json()["paths"]
+
+
+def test_inference_status_reports_installed_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.api.v1.endpoints.system import inference_status
+    from app.vision import disease, recognizer
+
+    monkeypatch.setattr(recognizer, "model_available", lambda: True)
+    monkeypatch.setattr(disease, "model_available", lambda m: False)
+    s = inference_status()
+    assert s.state == "degraded" and s.detail.startswith("1 of 3 models installed")
+    monkeypatch.setattr(recognizer, "model_available", lambda: False)
+    assert inference_status().state == "not_configured"
+    monkeypatch.setattr(recognizer, "model_available", lambda: True)
+    monkeypatch.setattr(disease, "model_available", lambda m: True)
+    assert inference_status().state == "ok"
