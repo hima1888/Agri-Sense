@@ -21,5 +21,5 @@ ENV APP_ENV=production PORT=8000
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD python -c "import os,urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.environ.get(\"PORT\",\"8000\")}/api/v1/health', timeout=4)"
-# Apply migrations, then serve. --proxy-headers so rate limiting sees the real client IP behind a load balancer.
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*' --workers 1"]
+# Apply migrations, load the crop catalogue (idempotent), then serve. --proxy-headers so rate limiting sees the real client IP behind a load balancer.
+CMD ["sh", "-c", "alembic upgrade head && python -m app.cli.seed && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*' --workers 1"]
