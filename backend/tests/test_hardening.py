@@ -141,7 +141,9 @@ def test_weather_values_just_outside_physical_ranges_are_clamped_not_rejected() 
     assert rows[1].values["wind_direction_deg"] == 360 and rows[1].values["temperature_c"] == -3.0
 
 
-def test_jwks_url_defaults_to_issuer_and_can_be_overridden() -> None:
+def test_jwks_url_defaults_to_issuer_and_can_be_overridden(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in ("SUPABASE_URL", "SUPABASE_JWKS_URL"):  # CI sets SUPABASE_URL globally
+        monkeypatch.delenv(var, raising=False)
     s = Settings(_env_file=None, supabase_url="http://127.0.0.1:54321")  # type: ignore[call-arg]
     assert s.jwks_url == "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json"
     o = Settings(  # type: ignore[call-arg]

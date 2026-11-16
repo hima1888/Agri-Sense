@@ -148,6 +148,8 @@ class FakeResponse:
 
 
 def test_auth_status_reports_each_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in ("SUPABASE_URL", "SUPABASE_JWKS_URL", "SUPABASE_JWT_SECRET"):  # CI sets SUPABASE_URL globally
+        monkeypatch.delenv(var, raising=False)
     s = Settings(_env_file=None, supabase_url="http://auth.local")  # type: ignore[call-arg]
     monkeypatch.setattr(system.httpx, "get", lambda *a, **k: FakeResponse([{"kid": "k"}]))
     assert system.auth_status(s) == ("ok", "Supabase Auth reachable; 1 signing key(s).")

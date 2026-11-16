@@ -25,7 +25,9 @@ def test_health_ok(make_client: ClientFactory) -> None:
     assert "timestamp" in body
 
 
-def test_system_info_without_database(make_client: ClientFactory) -> None:
+def test_system_info_without_database(make_client: ClientFactory, monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in ("SUPABASE_URL", "SUPABASE_JWKS_URL", "SUPABASE_JWT_SECRET"):  # CI sets SUPABASE_URL globally
+        monkeypatch.delenv(var, raising=False)
     client = make_client()
     body = client.get("/api/v1/system/info").json()
     assert body["name"] == "AGRI-SENSE"
