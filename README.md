@@ -3,6 +3,8 @@
 An AI, IoT and 3D digital-twin platform for sustainable farming.
 **See → Sense → Analyze → Predict → Recommend → Act → Learn.**
 
+**Live demo:** https://agri-sense-web.onrender.com (free hosting: the first visit after a quiet period can take about a minute while the server wakes up; the two leaf-disease models are not deployed online, see docs/DEPLOYMENT.md)
+
 > **Version 1.0.0. All 21 build phases complete.** Every AI output shows its prediction, confidence, the factors
 > behind it, a recommendation, and its limitations. Simulated data is labelled wherever it appears.
 
@@ -37,7 +39,7 @@ Engineering: [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATABASE](docs/DATABASE.md
   accuracy is unknown. The two disease model files are converted locally and are not in git.
 * The federated model does not yet beat a "no change" baseline on the available data; the app says so.
 * Yield, irrigation savings and fertilizer doses are rule-based estimates, not field-validated predictions.
-* Not deployed to a public URL yet. The production Docker stack is verified locally, and a Render blueprint is included.
+* Online, the leaf-disease models are not installed (not in git); produce recognition and everything else run. Free hosting sleeps when idle.
 
 ## Repository layout
 
