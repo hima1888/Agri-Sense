@@ -6,11 +6,17 @@ Only the farm's coordinates are sent; no user or farm identifiers.
 
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+
+log = logging.getLogger(__name__)
+RETRIES = 3
+BACKOFF_S = 1.0
 
 BASE_URL = "https://api.open-meteo.com/v1/forecast"
 SOURCE = "open-meteo"
@@ -113,10 +119,34 @@ class OpenMeteoClient:
             "past_days": 1,
             "wind_speed_unit": "ms",
         }
-        try:
-            res = self._client.get(BASE_URL, params=params)
-            res.raise_for_status()
-            payload = res.json()
-        except (httpx.HTTPError, ValueError) as exc:
-            raise WeatherUnavailableError(f"Open-Meteo request failed ({type(exc).__name__}).") from exc
-        return parse(payload)
+        return parse(self._get(params))
+
+    def _get(self, params: dict[str, str | int | float]) -> dict[str, Any]:
+        """GET with a short retry on rate limits, server errors and network failures."""
+        problem = "unknown error"
+        for attempt in range(RETRIES):
+            if attempt:
+                time.sleep(BACKOFF_S * attempt)
+            try:
+                res = self._client.get(BASE_URL, params=params)
+            except httpx.HTTPError as exc:
+                problem = f"network error: {type(exc).__name__}"
+                continue
+            if res.status_code == 200:
+                try:
+                    payload: dict[str, Any] = res.json()
+                except ValueError:
+                    problem = "invalid response"
+                    continue
+                return payload
+            problem = f"HTTP {res.status_code}"
+            try:
+                reason = res.json().get("reason")
+            except ValueError:
+                reason = None
+            if reason:
+                problem += f": {str(reason)[:160]}"
+            if res.status_code != 429 and res.status_code < 500:
+                break  # a request error will not fix itself on retry
+        log.warning("Open-Meteo request failed (%s)", problem)
+        raise WeatherUnavailableError(f"Open-Meteo request failed ({problem}).")

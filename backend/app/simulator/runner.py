@@ -10,13 +10,17 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.models import SensorReading
 from app.realtime.broadcaster import Broadcaster
 from app.services.readings import READINGS_EVENT, events_by_farm
 from app.simulator.engine import SimulatorEngine
 
 logger = logging.getLogger("agri_sense.simulator")
+GAP_MAX = timedelta(hours=24)
+GAP_STEP = timedelta(minutes=10)
 
 
 class SimulatorRunner:
@@ -48,10 +52,42 @@ class SimulatorRunner:
         self.last_tick_readings = len(stored)
         return events_by_farm(stored)
 
+    def fill_gaps(
+        self, now: datetime | None = None, max_gap: timedelta = GAP_MAX, step: timedelta = GAP_STEP
+    ) -> int:
+        """Fill the time the server was down or asleep (up to `max_gap`) with simulated history, so
+        charts stay continuous on a host that sleeps when idle. Only simulated sensors are touched,
+        and existing timestamps are kept. Returns the number of readings inserted."""
+        now = now or datetime.now(UTC)
+        inserted = 0
+        with self.session_factory() as db:
+            farm_ids = sorted({s.farm_id for s in SimulatorEngine.simulated_sensors(db)})
+            for farm_id in farm_ids:
+                sensor_ids = [s.id for s in SimulatorEngine.simulated_sensors(db, farm_id)]
+                last = db.scalar(
+                    select(func.max(SensorReading.recorded_at)).where(SensorReading.sensor_id.in_(sensor_ids))
+                )
+                if last is not None and last.tzinfo is None:
+                    last = last.replace(tzinfo=UTC)
+                start = max(last + step, now - max_gap) if last is not None else now - max_gap
+                end = now - step
+                if start > end:
+                    continue
+                inserted += int(self.engine.backfill(db, farm_id, start, end, step)["inserted"])
+                self.engine.forget_farm(farm_id)
+            db.commit()
+        if inserted:
+            logger.info("Simulator filled %s readings missed while the server was idle", inserted)
+        return inserted
+
     async def _loop(self) -> None:
         self.running = True
         logger.info("Sensor simulator started (every %ss)", self.interval)
         try:
+            try:
+                await asyncio.to_thread(self.fill_gaps)
+            except Exception:  # never block live readings on the catch-up
+                logger.exception("Simulator gap fill failed")
             while True:
                 started = time.monotonic()
                 try:

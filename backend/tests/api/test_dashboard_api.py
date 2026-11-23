@@ -11,7 +11,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.v1.endpoints.dashboard import get_weather_client
-from app.integrations.open_meteo import OpenMeteoClient
+from app.integrations import open_meteo
+from app.integrations.open_meteo import OpenMeteoClient, WeatherUnavailableError
 from app.models import WeatherData
 from tests.api.helpers import V1, err, make_zone, ok
 from tests.conftest import ClientFor
@@ -61,7 +62,8 @@ class FakeOpenMeteo:
 
 
 @pytest.fixture
-def meteo(api: TestClient) -> FakeOpenMeteo:
+def meteo(api: TestClient, monkeypatch: pytest.MonkeyPatch) -> FakeOpenMeteo:
+    monkeypatch.setattr(open_meteo, "BACKOFF_S", 0)
     fake = FakeOpenMeteo()
     client = OpenMeteoClient(transport=httpx.MockTransport(fake.handler))
     api.app.dependency_overrides[get_weather_client] = lambda: client  # type: ignore[attr-defined]
@@ -272,3 +274,43 @@ def test_dashboard_is_owner_only(client_for: ClientFor, farm: dict[str, Any]) ->
         404,
         "not_found",
     )
+
+
+def test_weather_client_retries_rate_limits_and_reports_the_reason(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(open_meteo, "BACKOFF_S", 0)
+    calls: list[int] = []
+
+    def flaky(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(429, json={"error": True, "reason": "Minutely API request limit exceeded"})
+        return httpx.Response(200, json=open_meteo_payload(datetime.now(UTC)))
+
+    assert OpenMeteoClient(transport=httpx.MockTransport(flaky)).forecast(17.4, 78.5)
+    assert len(calls) == 2  # recovered on the retry
+
+    def limited(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, json={"error": True, "reason": "Daily API request limit exceeded"})
+
+    with pytest.raises(WeatherUnavailableError, match="HTTP 429: Daily API request limit exceeded"):
+        OpenMeteoClient(transport=httpx.MockTransport(limited)).forecast(17.4, 78.5)
+
+    bad: list[int] = []
+
+    def invalid(request: httpx.Request) -> httpx.Response:
+        bad.append(1)
+        return httpx.Response(400, json={"error": True, "reason": "Bad latitude"})
+
+    with pytest.raises(WeatherUnavailableError, match="HTTP 400: Bad latitude"):
+        OpenMeteoClient(transport=httpx.MockTransport(invalid)).forecast(17.4, 78.5)
+    assert len(bad) == 1  # request errors are not retried
+
+    def down(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("no route")
+
+    with pytest.raises(WeatherUnavailableError, match="network error: ConnectError"):
+        OpenMeteoClient(transport=httpx.MockTransport(down)).forecast(17.4, 78.5)
+
+    with pytest.raises(WeatherUnavailableError, match="invalid response"):
+        html = httpx.MockTransport(lambda r: httpx.Response(200, text="<html>"))
+        OpenMeteoClient(transport=html).forecast(1, 1)

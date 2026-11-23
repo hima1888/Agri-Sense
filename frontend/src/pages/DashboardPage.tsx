@@ -187,7 +187,13 @@ function FarmDashboard({ farm, farms, onSelect }: { farm: FarmDetail; farms: Far
             <div className="h-[260px] animate-pulse rounded-lg bg-white/[0.03]" />
           ) : (
             <>
-              {weather.data.error && <div className="mb-3"><FormAlert>{weather.data.stale ? 'Showing the last stored forecast: ' : ''}{weather.data.error}</FormAlert></div>}
+              {weather.data.error && (
+                <p className="mb-3 text-xs text-sage-400" title={weather.data.error}>
+                  {weather.data.hourly.length
+                    ? 'Showing the last saved forecast; the weather service did not answer just now.'
+                    : 'The weather service did not answer just now. Press Refresh in a minute.'}
+                </p>
+              )}
               <WeatherCharts hourly={weather.data.hourly} tz={farm.timezone} />
               <div className="mt-4"><DailyOutlook weather={weather.data} /></div>
               <p className="mt-3 text-[0.68rem] text-sage-400">

@@ -8,7 +8,7 @@ import asyncio
 import contextlib
 import hashlib
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +22,7 @@ from app.api.v1.endpoints import system
 from app.cli import fetch_models, seed, users
 from app.core.config import Settings
 from app.core.security import TokenError
-from app.models import Crop, Farm, SensorReading, User
+from app.models import Crop, Farm, Sensor, SensorReading, User
 from app.realtime.broadcaster import Broadcaster
 from app.services.alert_runner import AlertRunner
 from app.simulator.runner import SimulatorRunner
@@ -58,6 +58,21 @@ def test_simulator_tick_stores_readings_and_reports_status(api: TestClient, db: 
     assert (db.scalar(select(func.count()).select_from(SensorReading)) or 0) > before
     st = runner.status()
     assert st["running"] is False and st["last_tick_readings"] == runner.last_tick_readings
+
+
+def test_simulator_fills_the_gap_left_while_the_server_slept(api: TestClient, db: Session) -> None:
+    z = simulated_zone(api)
+    runner = SimulatorRunner(shared(db), Broadcaster(), interval_seconds=60)
+    now = datetime.now(UTC).replace(second=0, microsecond=0)
+    runner.tick_once(now - timedelta(hours=3))  # last reading, then the server "slept" for 3 h
+    count = lambda: db.scalar(  # noqa: E731
+        select(func.count()).select_from(SensorReading).join(Sensor).where(Sensor.farm_id == z["farm_id"])
+    ) or 0
+    sensors = count()  # one reading per sensor so far
+    assert sensors > 0
+    assert runner.fill_gaps(now) >= 17 * sensors  # 10-minute steps across the 3 h gap
+    assert count() >= 18 * sensors
+    assert runner.fill_gaps(now) == 0  # nothing left to fill
 
 
 def test_alert_runner_evaluates_each_farm_and_loop_starts_and_stops(api: TestClient, db: Session) -> None:
