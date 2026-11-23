@@ -46,7 +46,7 @@ function VisionTabs({ farmId }: { farmId: number }) {
     <>
       <div role="tablist" aria-label="Vision tools" className="mt-6 inline-flex gap-1 rounded-full border border-white/10 p-1">
         <button type="button" role="tab" aria-selected={tab === 'produce'} className={tabCls('produce')} onClick={() => go('produce')}>Produce recognition</button>
-        <button type="button" role="tab" aria-selected={tab === 'disease'} className={tabCls('disease')} onClick={() => go('disease')}>Leaf disease check</button>
+        <button type="button" role="tab" aria-selected={tab === 'disease'} className={tabCls('disease')} onClick={() => go('disease')}>Disease check</button>
       </div>
       <div className="mt-6">{tab === 'disease' ? <DiseaseSection farmId={farmId} zones={zones.data?.items ?? []} /> : <FarmVision farmId={farmId} />}</div>
     </>
@@ -83,7 +83,7 @@ function FarmVision({ farmId }: { farmId: number }) {
         <Card title="Photo" className="lg:col-span-2">
           <p className="mb-4 rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-sage-200">
             Identifies <strong>which</strong> fruit or vegetable is in the photo (25 types); it does not check for disease.
-            To check a plant for disease, use the <Link to="/vision?tab=disease" className="text-wheat-300 hover:underline">Leaf disease check</Link> with a photo of a leaf.
+            To check a plant for disease, use the <Link to="/vision?tab=disease" className="text-wheat-300 hover:underline">Disease check</Link> with a photo of a leaf or an orange fruit.
           </p>
           <form onSubmit={submit} className="space-y-4" aria-label="Recognise a photo">
             <label className="block text-sm text-sage-200">

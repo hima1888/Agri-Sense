@@ -168,6 +168,7 @@ def test_models_endpoint(api: TestClient) -> None:
     info = ok(api.get(f"{V1}/vision/disease/models"))
     assert [m["key"] for m in info["models"]] == ["crop_vit", "plantvillage", "orange_fruit"]
     assert info["supported_fruits"] == {"orange": "orange_fruit"} and info["models"][2]["part"] == "fruit"
+    assert "orange" in info["models"][1]["used_for"] and info["models"][2]["used_for"] == ["orange"]
     assert (
         info["supported_crops"]["rice"] == "crop_vit" and info["supported_crops"]["tomato"] == "plantvillage"
     )

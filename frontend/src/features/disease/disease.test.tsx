@@ -131,7 +131,7 @@ describe('leaf disease check', () => {
     const user = userEvent.setup()
     renderRoute('/vision')
     expect(await screen.findByLabelText(/Photo of a fruit/)).toBeInTheDocument()
-    await user.click(screen.getByRole('tab', { name: 'Leaf disease check' }))
+    await user.click(screen.getByRole('tab', { name: 'Disease check' }))
     await waitFor(() => expect(screen.getByLabelText('Photo of one leaf')).toBeInTheDocument())
     expect(await screen.findByText(/Conflicting/)).toBeInTheDocument()
   })

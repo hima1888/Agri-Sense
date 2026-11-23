@@ -419,7 +419,7 @@ def models_info() -> list[dict[str, Any]]:
             "source": m.source, "weights_source": m.weights_source, "licence": m.licence,
             "architecture": m.architecture, "preprocessing": m.preprocessing, "input": [1, 3, 224, 224],
             "crops": m.crops, "classes": [label_text(m, i) for i in range(len(m.labels))],
-            "used_for": [c for c, k in {**supported_crops(), **supported_fruits()}.items() if k == m.key],
+            "used_for": [c for c, k in (supported_fruits() if m.part == "fruit" else supported_crops()).items() if k == m.key],
             "part": m.part,
             "published_accuracy": m.published_accuracy, "limitations": m.limitations,
         }
