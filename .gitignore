@@ -10,6 +10,9 @@ supabase/.branches
 
 # Downloaded model weights (fetch with backend/scripts/fetch_models.py)
 backend/ml_models/*.onnx
+# The two leaf-disease models are kept in git so the server build has them (see backend/ml_models/MODELS.md).
+!backend/ml_models/crop_leaf_vit.onnx
+!backend/ml_models/plantvillage_mnv2.onnx
 
 # Uploaded images (Phase 9)
 backend/uploads/
