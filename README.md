@@ -36,10 +36,11 @@ Engineering: [ARCHITECTURE](docs/ARCHITECTURE.md) · [DATABASE](docs/DATABASE.md
 
 * No physical sensors are attached: readings come from the simulator and are labelled *simulated*.
 * The disease models were trained on lab photos and got 0 of 5 real field photos right in testing; field
-  accuracy is unknown. The two disease model files are converted locally and are not in git.
+  accuracy is unknown. The two converted disease model files are in `backend/ml_models/` (sources and licences in
+  `backend/ml_models/MODELS.md`).
 * The federated model does not yet beat a "no change" baseline on the available data; the app says so.
 * Yield, irrigation savings and fertilizer doses are rule-based estimates, not field-validated predictions.
-* Online, the leaf-disease models are not installed (not in git); produce recognition and everything else run. Free hosting sleeps when idle.
+* Free hosting sleeps when idle, so the first request after a break can take about a minute.
 
 ## Repository layout
 

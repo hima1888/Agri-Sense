@@ -44,9 +44,9 @@ first deploy as its test.
 
 ## Limitations
 
-* **Disease models are not in git** (converted locally, ~31 MB, see docs/DISEASE_MODELS.md). A Docker build from
-  this working copy includes them; a build from git (Render) does not, and disease checks then report the model
-  as unavailable. The produce model is downloaded and checksum-verified during the image build.
+* **Disease models are in git** (~31 MB, `backend/ml_models/`, see docs/DISEASE_MODELS.md and
+  `backend/ml_models/MODELS.md`), so every build, including Render's, has them; the app checks their SHA-256
+  before use. The produce model is downloaded and checksum-verified during the image build.
 * Rate limiting is per process (one uvicorn worker by design; the simulator and alert loops run in-process).
   Run one API instance, or move limits to the proxy before scaling out.
 * Uploaded photos are on a local volume. Render's free plan has no persistent disk: photos are lost on redeploy
