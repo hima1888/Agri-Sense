@@ -50,7 +50,7 @@ function stalledStream() {
   return new Response(body, { headers: { 'Content-Type': 'text/event-stream' } })
 }
 
-function mockApi(farms = [FARM]) {
+function mockApi(farms = [FARM], weather: object = WEATHER) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
     const method = init?.method ?? 'GET'
@@ -59,7 +59,7 @@ function mockApi(farms = [FARM]) {
     if (url.endsWith('/farms') && method === 'POST') return jsonResponse({ ...FARM, ...JSON.parse(String(init?.body)), id: 99 }, 201)
     if (url.includes('/farms?limit=100')) return jsonResponse({ total: farms.length, items: farms })
     if (url.endsWith('/dashboard')) return jsonResponse(DASHBOARD)
-    if (url.includes('/weather')) return jsonResponse(WEATHER)
+    if (url.includes('/weather')) return jsonResponse(weather)
     if (url.includes('/series')) return jsonResponse({ sensor_type: 'soil_moisture', unit: '%', includes_simulated: true, bucket_minutes: 15, start: NOW, end: NOW, zones: [] })
     if (url.includes('/zones')) return jsonResponse({ total: 0, items: [] })
     return jsonResponse({ status: 'ok', service: 'x', version: '1', timestamp: NOW })
@@ -102,6 +102,17 @@ describe('dashboard', () => {
     await waitFor(() =>
       expect(fetchSpy.mock.calls.some(([u, i]) => String(u).endsWith('/alerts/11/resolve') && i?.method === 'POST')).toBe(true),
     )
+  })
+
+  it('leaves the weather card and tiles out when no forecast could be fetched', async () => {
+    mockApi([FARM], { ...WEATHER, current: null, hourly: [], daily: [], stale: true, error: 'Open-Meteo request failed (HTTP 429).' })
+    renderRoute('/dashboard')
+    expect(await screen.findByRole('heading', { name: 'Kaveri Farm', level: 1 })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Zones' })).toBeInTheDocument()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(screen.queryByRole('region', { name: 'Weather' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Air now')).not.toBeInTheDocument()
+    expect(screen.queryByText(/request failed/)).not.toBeInTheDocument()
   })
 
   it('invites the user to create a farm when there is none', async () => {

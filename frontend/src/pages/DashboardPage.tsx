@@ -78,8 +78,9 @@ function FarmDashboard({ farm, farms, onSelect }: { farm: FarmDetail; farms: Far
     .map((z) => liveByZone.get(z.id)?.soil_moisture ?? z.latest.soil_moisture?.value)
     .filter((v): v is number => v != null)
   const avgMoisture = moistureNow.length ? moistureNow.reduce((a, b) => a + b, 0) / moistureNow.length : null
+  const hasWeather = (weather.data?.hourly.length ?? 0) > 0 || (weather.data?.daily.length ?? 0) > 0
   const today = weather.data?.daily[0]
-  const current = weather.data?.current
+  const current = weather.data?.current ?? undefined
   const localTime = new Intl.DateTimeFormat(undefined, { timeZone: farm.timezone, weekday: 'long', hour: '2-digit', minute: '2-digit' }).format(now)
   const zoneName = (id: number) => d.zones.find((z) => z.id === id)?.name ?? `Zone ${id}`
   const meta = SENSOR_META[trendType]
@@ -122,10 +123,10 @@ function FarmDashboard({ farm, farms, onSelect }: { farm: FarmDetail; farms: Far
       )}
 
       {/* KPIs */}
-      <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className={`mt-8 grid grid-cols-2 gap-3 ${current && today ? 'lg:grid-cols-5' : 'lg:grid-cols-3'}`}>
         <KpiTile label="Soil moisture" accent={ZONE_COLORS[2]} value={avgMoisture != null ? avgMoisture.toFixed(1) : '—'} unit="%" sub={moistureNow.length > 1 ? `range ${Math.min(...moistureNow).toFixed(1)}–${Math.max(...moistureNow).toFixed(1)} % across zones` : 'average of zone sensors'} />
-        <KpiTile label="Air now" accent={TEMP_COLOR} value={current?.temperature_c != null ? current.temperature_c.toFixed(1) : '—'} unit="°C" sub={current ? `${Math.round(current.relative_humidity_pct ?? 0)} % RH · wind ${current.wind_speed_ms?.toFixed(1) ?? '—'} m/s (Open-Meteo)` : farm.latitude == null ? 'set a location' : 'loading forecast…'} />
-        <KpiTile label="Today" accent={RAIN_COLOR} value={today?.temp_max_c != null ? `${Math.round(today.temp_max_c)}°` : '—'} sub={today ? `low ${Math.round(today.temp_min_c ?? 0)}° · rain ${today.precipitation_mm} mm (${Math.round(today.precipitation_probability_max_pct ?? 0)}%) · ET₀ ${today.et0_mm.toFixed(1)} mm` : 'no forecast yet'} />
+        {current && <KpiTile label="Air now" accent={TEMP_COLOR} value={current.temperature_c != null ? current.temperature_c.toFixed(1) : '—'} unit="°C" sub={`${Math.round(current.relative_humidity_pct ?? 0)} % RH · wind ${current.wind_speed_ms?.toFixed(1) ?? '—'} m/s (Open-Meteo)`} />}
+        {today && <KpiTile label="Today" accent={RAIN_COLOR} value={today.temp_max_c != null ? `${Math.round(today.temp_max_c)}°` : '—'} sub={`low ${Math.round(today.temp_min_c ?? 0)}° · rain ${today.precipitation_mm} mm (${Math.round(today.precipitation_probability_max_pct ?? 0)}%) · ET₀ ${today.et0_mm.toFixed(1)} mm`} />}
         <KpiTile label="Water, 7 days" value={(d.water_7d.liters / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} unit="m³" sub={`${d.water_7d.events} irrigation event${d.water_7d.events === 1 ? '' : 's'}`} />
         <KpiTile
           label="Open alerts"
@@ -138,7 +139,7 @@ function FarmDashboard({ farm, farms, onSelect }: { farm: FarmDetail; farms: Far
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
         <Card
           title={`${meta.label} by zone`}
-          className="xl:col-span-2"
+          className={hasWeather ? 'xl:col-span-2' : 'xl:col-span-3'}
           action={series.data?.includes_simulated ? <Pill tone="warn">Simulated</Pill> : undefined}
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -171,38 +172,23 @@ function FarmDashboard({ farm, farms, onSelect }: { farm: FarmDetail; farms: Far
           </div>
         </Card>
 
-        <Card
-          title="Weather"
-          action={farm.latitude != null && (
-            <button type="button" onClick={() => refreshWeather.mutate()} disabled={refreshWeather.isPending} className="text-xs text-sage-400 hover:text-sage-100">
-              {refreshWeather.isPending ? 'Refreshing…' : 'Refresh'}
-            </button>
-          )}
-        >
-          {farm.latitude == null ? (
-            <p className="text-sm text-sage-300">Add the farm&apos;s location in <Link className="text-wheat-300" to={`/farms/${farm.id}`}>settings</Link> to get a forecast.</p>
-          ) : weather.isError ? (
-            <FormAlert>{weather.error.message}</FormAlert>
-          ) : !weather.data ? (
-            <div className="h-[260px] animate-pulse rounded-lg bg-white/[0.03]" />
-          ) : (
-            <>
-              {weather.data.error && (
-                <p className="mb-3 text-xs text-sage-400" title={weather.data.error}>
-                  {weather.data.hourly.length
-                    ? 'Showing the last saved forecast; the weather service did not answer just now.'
-                    : 'The weather service did not answer just now. Press Refresh in a minute.'}
-                </p>
-              )}
-              <WeatherCharts hourly={weather.data.hourly} tz={farm.timezone} />
-              <div className="mt-4"><DailyOutlook weather={weather.data} /></div>
-              <p className="mt-3 text-[0.68rem] text-sage-400">
-                <a href="https://open-meteo.com/" target="_blank" rel="noreferrer" className="hover:text-sage-200">{weather.data.attribution}</a>
-                {weather.data.fetched_at && ` · updated ${new Date(weather.data.fetched_at).toLocaleTimeString()}`}
-              </p>
-            </>
-          )}
-        </Card>
+        {hasWeather && weather.data && (
+          <Card
+            title="Weather"
+            action={
+              <button type="button" onClick={() => refreshWeather.mutate()} disabled={refreshWeather.isPending} className="text-xs text-sage-400 hover:text-sage-100">
+                {refreshWeather.isPending ? 'Refreshing…' : 'Refresh'}
+              </button>
+            }
+          >
+            <WeatherCharts hourly={weather.data.hourly} tz={farm.timezone} />
+            <div className="mt-4"><DailyOutlook weather={weather.data} /></div>
+            <p className="mt-3 text-[0.68rem] text-sage-400">
+              <a href="https://open-meteo.com/" target="_blank" rel="noreferrer" className="hover:text-sage-200">{weather.data.attribution}</a>
+              {weather.data.fetched_at && ` · updated ${new Date(weather.data.fetched_at).toLocaleTimeString()}`}
+            </p>
+          </Card>
+        )}
       </div>
 
       {/* Zones */}
