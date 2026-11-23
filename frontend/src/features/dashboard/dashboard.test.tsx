@@ -107,7 +107,8 @@ describe('dashboard', () => {
   it('invites the user to create a farm when there is none', async () => {
     mockApi([])
     renderRoute('/dashboard')
-    expect(await screen.findByRole('link', { name: 'Create a farm' })).toHaveAttribute('href', '/farms')
+    expect(await screen.findByRole('button', { name: 'Set up a demo farm' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Create my own farm' })).toHaveAttribute('href', '/farms')
   })
 })
 

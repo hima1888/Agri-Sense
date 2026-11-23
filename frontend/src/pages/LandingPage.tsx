@@ -6,24 +6,30 @@ import { VISION_LOOP } from '@/config/roadmap'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
-const PILLARS = [
+const OBJECTIVES = [
   {
-    k: '01',
-    title: 'Sense the field',
-    body: 'Soil moisture, pH, NPK, temperature, humidity, light, rainfall, leaf wetness and water level — streamed per zone and stored as time series.',
-    tags: ['IoT', 'SSE', 'ESP32-ready'],
+    k: 'Objective 01',
+    title: 'Detect crop disease',
+    body: 'Photograph one leaf. Real ONNX image models name the likely disease, show their confidence and refuse to guess on unclear or unsupported photos. Every result comes with a downloadable report on symptoms, causes and treatment.',
+    tags: ['Computer vision', 'ONNX', 'PDF report'],
+    to: '/vision?tab=disease',
+    cta: 'Check a leaf',
   },
   {
-    k: '02',
-    title: 'Understand the crop',
-    body: 'Computer vision for plants, leaves and produce; disease detection and yield models that show confidence, key factors and their limitations.',
-    tags: ['CV', 'ONNX', 'Explainable'],
+    k: 'Objective 02',
+    title: 'Train with federated learning',
+    body: 'Each farm trains a soil-moisture model on its own sensor data. Only model weights are averaged (FedAvg); raw readings are never pooled into one training set. Error is reported per round, against a simple baseline.',
+    tags: ['FedAvg', 'Privacy', 'Per-round metrics'],
+    to: '/federated',
+    cta: 'Open federated learning',
   },
   {
-    k: '03',
-    title: 'Act with less',
-    body: 'Irrigation and fertilizer recommendations that aim to cut water and chemical use, with every action logged so models can learn from outcomes.',
-    tags: ['Irrigation', 'Nutrients', 'Federated'],
+    k: 'Objective 03',
+    title: 'Explainable AI for crop management',
+    body: 'Irrigation, fertilizer and crop-care advice built from live sensors, weather and growth stage. Every recommendation lists the factors and rules behind it, so a farmer can see why, not just what.',
+    tags: ['Explainable', 'Irrigation', 'Fertilizer'],
+    to: '/advice',
+    cta: 'See explainable advice',
   },
 ]
 
@@ -57,8 +63,8 @@ export function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, ease, delay: 0.25 }}
           >
-            AGRI-SENSE joins field sensors, plant vision, weather and a 3D digital twin into one explainable system for
-            growing more with less water and fewer chemicals.
+            AGRI-SENSE detects crop disease from a leaf photo, trains models across farms with federated learning, and
+            explains every crop-management recommendation, all driven by real-time field sensors.
           </motion.p>
           <motion.div
             className="mt-10 flex flex-wrap items-center gap-3"
@@ -83,6 +89,39 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Objectives */}
+      <section className="border-y border-white/5 bg-ink-950/40">
+        <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6">
+          <SectionHeading eyebrow="Project objectives" title="Three goals, each one working end to end.">
+            Real-time field sensors and a 3D digital twin feed all three.
+          </SectionHeading>
+          <div className="mt-14 grid gap-6 lg:grid-cols-3">
+            {OBJECTIVES.map((p, i) => (
+              <motion.article
+                key={p.k}
+                className="glass flex flex-col rounded-2xl p-7"
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-60px' }}
+                transition={{ duration: 0.7, ease, delay: i * 0.08 }}
+              >
+                <span className="font-mono text-xs text-wheat-400">{p.k}</span>
+                <h3 className="mt-5 font-display text-2xl text-paper">{p.title}</h3>
+                <p className="mt-3 flex-1 text-sm leading-relaxed text-sage-300">{p.body}</p>
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {p.tags.map((t) => (
+                    <Pill key={t}>{t}</Pill>
+                  ))}
+                </div>
+                <Link to={p.to} className="mt-6 text-sm font-medium text-wheat-300 hover:underline">
+                  {p.cta} →
+                </Link>
+              </motion.article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Vision loop */}
       <section className="mx-auto max-w-7xl px-4 py-24 sm:px-6">
         <SectionHeading eyebrow="The loop" title="Seven steps, one continuous cycle.">
@@ -104,31 +143,6 @@ export function LandingPage() {
             </motion.li>
           ))}
         </ol>
-      </section>
-
-      {/* Pillars */}
-      <section className="border-y border-white/5 bg-ink-950/40">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-24 sm:px-6 lg:grid-cols-3">
-          {PILLARS.map((p, i) => (
-            <motion.article
-              key={p.k}
-              className="glass rounded-2xl p-7"
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.7, ease, delay: i * 0.08 }}
-            >
-              <span className="font-mono text-xs text-wheat-400">{p.k}</span>
-              <h3 className="mt-5 font-display text-2xl text-paper">{p.title}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-sage-300">{p.body}</p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                {p.tags.map((t) => (
-                  <Pill key={t}>{t}</Pill>
-                ))}
-              </div>
-            </motion.article>
-          ))}
-        </div>
       </section>
 
     </>

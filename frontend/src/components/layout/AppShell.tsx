@@ -5,24 +5,23 @@ import { Logo, StatusDot } from '@/components/ui/primitives'
 import { useAuth } from '@/features/auth/auth-context'
 import { useHealth } from '@/features/system/api'
 
-// Core tools are always visible on wide screens; the rest sit under "More". The mobile menu lists all.
+// The three project objectives come first: disease detection, federated learning and explainable advice.
+// Supporting tools sit under "More". The mobile menu lists all.
 const PRIMARY = [
   { to: '/dashboard', label: 'Dashboard', end: false },
-  { to: '/twin', label: 'Twin', end: false },
-  { to: '/soil', label: 'Soil', end: false },
-  { to: '/irrigation', label: 'Irrigation', end: false },
-  { to: '/nutrients', label: 'Nutrients', end: false },
-  { to: '/vision', label: 'Vision', end: false },
-  { to: '/advice', label: 'Advice', end: false },
+  { to: '/vision?tab=disease', label: 'Disease detection', end: false },
+  { to: '/federated', label: 'Federated learning', end: false },
+  { to: '/advice', label: 'Explainable advice', end: false },
+  { to: '/twin', label: 'Digital twin', end: false },
   { to: '/farms', label: 'Farms', end: false },
 ]
 const SECONDARY = [
+  { to: '/live', label: 'Live sensors', end: false },
   { to: '/growth', label: 'Crop growth', end: false },
-  { to: '/yield', label: 'Yield', end: false },
-  { to: '/analytics', label: 'Analytics', end: false },
+  { to: '/soil', label: 'Soil', end: false },
+  { to: '/irrigation', label: 'Irrigation', end: false },
+  { to: '/nutrients', label: 'Fertilizer', end: false },
   { to: '/alerts', label: 'Alerts', end: false },
-  { to: '/federated', label: 'Shared learning', end: false },
-  { to: '/live', label: 'Live', end: false },
 ]
 const NAV = [...PRIMARY, ...SECONDARY]
 

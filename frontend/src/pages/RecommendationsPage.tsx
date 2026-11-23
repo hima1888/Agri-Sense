@@ -27,8 +27,8 @@ export function RecommendationsPage() {
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow">Recommendations</p>
-          <h1 className="mt-2 font-display text-3xl text-paper">Advice</h1>
+          <p className="eyebrow">Objective 3 · explainable AI for crop management</p>
+          <h1 className="mt-2 font-display text-3xl text-paper">Explainable advice</h1>
         </div>
         <select aria-label="Farm" className={selectCls} value={farm.id} onChange={(e) => setParams({ farm: e.target.value })}>
           {farms.data.items.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}

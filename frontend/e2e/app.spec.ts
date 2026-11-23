@@ -98,9 +98,11 @@ test('analytics: save a report, open it, download CSV, delete it', async ({ page
 test('header navigation reaches the secondary pages through "More"', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto('/dashboard')
-  await page.getByRole('button', { name: /More/ }).click()
-  await page.getByRole('link', { name: 'Shared learning' }).click()
+  await page.getByRole('link', { name: 'Federated learning' }).click()
   await expect(page).toHaveURL(/\/federated/)
+  await page.getByRole('button', { name: /More/ }).click()
+  await page.getByRole('link', { name: 'Live sensors' }).click()
+  await expect(page).toHaveURL(/\/live/)
   const width = await page.evaluate(() => document.documentElement.scrollWidth)
   expect(width).toBeLessThanOrEqual(1280)
 })

@@ -113,3 +113,30 @@ test('TEST 6: a disease check saved for a zone changes that zone in the 3D twin 
     expect((await page.request.delete(`${API}/vision/disease-checks/${id}`, { headers: { Authorization: `Bearer ${t}` } })).status()).toBe(204)
   }
 })
+
+test('TEST 7: a new user sets up the demo farm in one click and live sensor readings arrive', async ({ page }) => {
+  // Show this account as having no farms (as a brand-new user sees it); every request after the click is real.
+  let empty = true
+  await page.route(/\/api\/v1\/farms\?limit=100$/, async (route) => {
+    const res = await route.fetch()
+    const body = (await res.json()) as { items: unknown[]; total?: number }
+    await route.fulfill({ response: res, json: empty ? { ...body, items: [], total: 0 } : body })
+  })
+  await page.goto('/dashboard')
+  const create = page.waitForResponse((r) => r.url().endsWith('/api/v1/farms') && r.request().method() === 'POST')
+  const backfill = page.waitForResponse((r) => r.url().endsWith('/simulator/backfill'), { timeout: 60_000 })
+  await page.getByRole('button', { name: 'Set up a demo farm' }).click()
+  const farmId = ((await (await create).json()) as { id: number }).id
+  try {
+    expect((await backfill).status()).toBe(200)
+    empty = false
+    await page.goto(`/dashboard?farm=${farmId}`)
+    await expect(page.getByRole('heading', { level: 1, name: 'Demo farm' })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole('region', { name: 'Zones' }).getByText('North field')).toBeVisible()
+    await expect(page.getByText(/Simulated sensor data\./)).toBeVisible()
+    await expect(page.getByText(/[1-9][\d,]* readings in the last 24 h/)).toBeVisible()
+    await expect(page.getByText('Live', { exact: true }).first()).toBeVisible({ timeout: 30_000 })
+  } finally {
+    expect((await page.request.delete(`${API}/farms/${farmId}`, { headers: { Authorization: `Bearer ${await token(page)}` } })).status()).toBe(204)
+  }
+})

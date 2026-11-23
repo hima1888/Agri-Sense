@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { FormAlert, SubmitButton, TextField } from '@/components/ui/form'
 import { Pill } from '@/components/ui/primitives'
 import { useAlertAction, useLogIrrigation } from './api'
+import { useDemoFarm } from './demo'
 import { zoneColor } from './palette'
 import type { Alert, Dashboard, Weather, ZoneSummary } from './schemas'
 
@@ -230,13 +231,27 @@ export function LogIrrigationForm({ farmId, zones, onDone }: { farmId: number; z
 }
 
 export function EmptyFarms() {
+  const demo = useDemoFarm()
   return (
     <div className="glass mx-auto mt-10 max-w-lg rounded-2xl p-8 text-center">
       <h2 className="font-display text-2xl text-paper">No farms yet</h2>
-      <p className="mt-2 text-sm text-sage-300">Create a farm with its location to see weather, sensors and analytics here.</p>
-      <Link to="/farms" className="mt-6 inline-block rounded-full bg-paper px-5 py-2 text-sm font-medium text-ink-900">
-        Create a farm
-      </Link>
+      <p className="mt-2 text-sm text-sage-300">
+        Start with a ready-made demo farm: two zones with live sensor readings every 10 seconds and real local weather. Or create your own.
+      </p>
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <button
+          type="button"
+          disabled={demo.isPending}
+          onClick={() => demo.mutate()}
+          className="rounded-full bg-paper px-5 py-2 text-sm font-medium text-ink-900 disabled:opacity-60"
+        >
+          {demo.isPending ? 'Setting up demo farm…' : 'Set up a demo farm'}
+        </button>
+        <Link to="/farms" className="rounded-full border border-white/15 px-5 py-2 text-sm text-sage-100 hover:border-white/30">
+          Create my own farm
+        </Link>
+      </div>
+      {demo.isError && <div className="mt-4"><FormAlert>Could not set up the demo farm: {demo.error.message}</FormAlert></div>}
     </div>
   )
 }
