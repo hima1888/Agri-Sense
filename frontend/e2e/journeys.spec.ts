@@ -132,11 +132,31 @@ test('TEST 7: a new user sets up the demo farm in one click and live sensor read
     empty = false
     await page.goto(`/dashboard?farm=${farmId}`)
     await expect(page.getByRole('heading', { level: 1, name: 'Demo farm' })).toBeVisible({ timeout: 30_000 })
-    await expect(page.getByRole('region', { name: 'Zones' }).getByText('North field')).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Zones' }).getByText('Corn field')).toBeVisible()
     await expect(page.getByText(/Simulated sensor data\./)).toBeVisible()
     await expect(page.getByText(/[1-9][\d,]* readings in the last 24 h/)).toBeVisible()
     await expect(page.getByText('Live', { exact: true }).first()).toBeVisible({ timeout: 30_000 })
   } finally {
     expect((await page.request.delete(`${API}/farms/${farmId}`, { headers: { Authorization: `Bearer ${await token(page)}` } })).status()).toBe(204)
+  }
+})
+
+test('TEST 8: picking a crop offers a new zone for it; the zone is created with live sensors and selected', async ({ page }) => {
+  await page.goto('/vision?tab=disease')
+  const form = page.getByRole('form', { name: 'Check a leaf for disease' })
+  const [crop, zone] = [form.locator('select').nth(0), form.locator('select').nth(1)]
+  await crop.selectOption('squash')
+  await expect(zone.locator('option', { hasText: '+ New zone: Squash field' })).toHaveCount(1)
+  const created = page.waitForResponse((r) => /\/farms\/\d+\/zones$/.test(r.url()) && r.request().method() === 'POST')
+  const sensors = page.waitForResponse((r) => r.url().endsWith('/simulator/provision'))
+  await zone.selectOption('new')
+  const zoneId = ((await (await created).json()) as { id: number }).id
+  try {
+    expect((await sensors).status()).toBe(201)
+    await expect(zone).toHaveValue(String(zoneId))
+    await expect(zone.locator('option:checked')).toHaveText('Squash field')
+    await expect(zone.locator('option', { hasText: '+ New zone' })).toHaveCount(0) // the crop has its zone now
+  } finally {
+    expect((await page.request.delete(`${API}/zones/${zoneId}`, { headers: { Authorization: `Bearer ${await token(page)}` } })).status()).toBe(204)
   }
 })

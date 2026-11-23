@@ -236,7 +236,7 @@ export function EmptyFarms() {
     <div className="glass mx-auto mt-10 max-w-lg rounded-2xl p-8 text-center">
       <h2 className="font-display text-2xl text-paper">No farms yet</h2>
       <p className="mt-2 text-sm text-sage-300">
-        Start with a ready-made demo farm: two zones with live sensor readings every 10 seconds and real local weather. Or create your own.
+        Start with a ready-made demo farm: tomato, potato, corn and rice zones, each with live sensor readings every 10 seconds. Or create your own.
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <button

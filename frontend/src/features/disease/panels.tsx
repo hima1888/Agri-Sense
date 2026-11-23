@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { FormAlert, SubmitButton } from '@/components/ui/form'
 import { Pill, type Tone } from '@/components/ui/primitives'
 import { Card } from '@/features/dashboard/panels'
+import { cropZoneName, useCreateCropZone } from '@/features/dashboard/demo'
 import type { ZoneDetail } from '@/features/dashboard/schemas'
 import { pct } from '@/lib/percent'
 import { useAuthedImage } from '@/lib/use-authed-image'
@@ -128,6 +129,19 @@ export function DiseaseSection({ farmId, zones }: { farmId: number; zones: ZoneD
   const preview = useFilePreview(file)
   const crops = Object.keys(models.data?.supported_crops ?? {})
   const zoneName = (id: number | null) => zones.find((z) => z.id === id)?.name ?? null
+  const addZone = useCreateCropZone(farmId)
+  const newZoneName = crop ? cropZoneName(crop) : null
+  const canAddZone = newZoneName != null && !zones.some((z) => z.name.toLowerCase() === newZoneName.toLowerCase())
+
+  function chooseZone(value: string) {
+    if (value !== 'new') return setZoneId(value ? Number(value) : null)
+    addZone.mutate(crop, { onSuccess: (id) => setZoneId(id) })
+  }
+  function chooseCrop(value: string) {
+    setCrop(value)
+    const own = value ? zones.find((z) => z.name.toLowerCase() === cropZoneName(value).toLowerCase()) : undefined
+    if (own) setZoneId(own.id)
+  }
 
   function pick(f: File | null) {
     screen.reset()
@@ -155,17 +169,20 @@ export function DiseaseSection({ farmId, zones }: { farmId: number; zones: ZoneD
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm text-sage-200">
                 Crop
-                <select className={selectCls} value={crop} onChange={(e) => setCrop(e.target.value)}>
+                <select className={selectCls} value={crop} onChange={(e) => chooseCrop(e.target.value)}>
                   <option value="">From zone</option>
                   {crops.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </label>
               <label className="block text-sm text-sage-200">
                 Zone
-                <select className={selectCls} value={zoneId ?? ''} onChange={(e) => setZoneId(e.target.value ? Number(e.target.value) : null)}>
+                <select className={selectCls} value={zoneId ?? ''} disabled={addZone.isPending} onChange={(e) => chooseZone(e.target.value)}>
                   <option value="">No zone</option>
                   {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
+                  {canAddZone && <option value="new">+ New zone: {newZoneName}</option>}
                 </select>
+                {addZone.isPending && <span className="mt-1 block text-xs text-sage-400">Creating zone with live sensors…</span>}
+                {addZone.isError && <span className="mt-1 block text-xs text-sage-400">Could not create the zone: {addZone.error.message}</span>}
               </label>
             </div>
             {preview && <img src={preview} alt="Leaf to check" className="max-h-64 w-full rounded-xl object-contain" />}
