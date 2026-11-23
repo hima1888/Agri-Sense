@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import computed_field
+from pydantic import Field, computed_field
 
 from app.knowledge.diseases import key_for_label
 from app.schemas.common import OutputModel
@@ -146,6 +146,7 @@ class DiseaseScreening(OutputModel):
         "not_a_leaf",
         "unsupported_crop",
     ]
+    part: Literal["leaf", "fruit"] = "leaf"
     crop: str | None
     crop_source: str | None
     model: DiseaseModelRef | None
@@ -205,6 +206,7 @@ class DiseaseModelInfo(OutputModel):
     crops: list[str]
     classes: list[str]
     used_for: list[str]
+    part: Literal["leaf", "fruit"] = "leaf"
     published_accuracy: str
     limitations: list[str]
 
@@ -212,5 +214,6 @@ class DiseaseModelInfo(OutputModel):
 class DiseaseModels(OutputModel):
     models: list[DiseaseModelInfo]
     supported_crops: dict[str, str]
+    supported_fruits: dict[str, str] = Field(default_factory=dict)
     thresholds: dict[str, float]
     limitations: list[str]

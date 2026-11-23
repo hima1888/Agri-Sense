@@ -9,7 +9,7 @@ import { pct } from '@/lib/percent'
 import { useAuthedImage } from '@/lib/use-authed-image'
 import { useFilePreview } from '@/lib/use-file-preview'
 import { HealthyPanel, KnowledgePanel, KnowledgeToggle } from './knowledge'
-import { useDeleteDiseaseCheck, useDiseaseChecks, useDiseaseModels, useScreenLeaf, type DiseaseRecord, type Screening } from './api'
+import { useDeleteDiseaseCheck, useDiseaseChecks, useDiseaseModels, useScreenLeaf, type DiseaseRecord, type Part, type Screening } from './api'
 
 const selectCls = 'mt-1.5 block w-full rounded-lg border border-white/10 bg-ink-950/60 px-3 py-2 text-sm text-paper'
 
@@ -23,7 +23,7 @@ const OUTCOME: Record<Screening['outcome'], { title: string; tone: Tone }> = {
 }
 
 export function ScreeningResult({ r }: { r: Screening }) {
-  const o = OUTCOME[r.outcome]
+  const o = r.outcome === 'not_a_leaf' && r.part === 'fruit' ? { title: 'Not the chosen fruit', tone: 'muted' as Tone } : OUTCOME[r.outcome]
   const confident = r.outcome === 'possible_disease' || r.outcome === 'possible_healthy'
   return (
     <div className="space-y-5">
@@ -47,7 +47,9 @@ export function ScreeningResult({ r }: { r: Screening }) {
 
       {r.outcome === 'possible_disease' && (
         <p className="text-sm text-sage-300">
-          Affected area (colour heuristic): {r.affected_area_pct == null ? 'not estimated' : `${r.affected_area_pct} %`} · severity {r.severity}
+          {r.part === 'fruit'
+            ? 'Severity is not estimated for fruit photos.'
+            : <>Affected area (colour heuristic): {r.affected_area_pct == null ? 'not estimated' : `${r.affected_area_pct} %`} · severity {r.severity}</>}
         </p>
       )}
 
@@ -123,11 +125,12 @@ export function DiseaseSection({ farmId, zones }: { farmId: number; zones: ZoneD
   const history = useDiseaseChecks(farmId)
   const screen = useScreenLeaf(farmId)
   const [file, setFile] = useState<File | null>(null)
+  const [part, setPart] = useState<Part>('leaf')
   const [crop, setCrop] = useState('')
   const [zoneId, setZoneId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const preview = useFilePreview(file)
-  const crops = Object.keys(models.data?.supported_crops ?? {})
+  const crops = Object.keys((part === 'fruit' ? models.data?.supported_fruits : models.data?.supported_crops) ?? {})
   const zoneName = (id: number | null) => zones.find((z) => z.id === id)?.name ?? null
   const addZone = useCreateCropZone(farmId)
   const newZoneName = crop ? cropZoneName(crop) : null
@@ -143,6 +146,11 @@ export function DiseaseSection({ farmId, zones }: { farmId: number; zones: ZoneD
     if (own) setZoneId(own.id)
   }
 
+  function choosePart(p: Part) {
+    screen.reset()
+    setPart(p)
+    if (crop && !(p === 'fruit' ? models.data?.supported_fruits : models.data?.supported_crops)?.[crop]) setCrop('')
+  }
   function pick(f: File | null) {
     screen.reset()
     setError(null)
@@ -153,17 +161,30 @@ export function DiseaseSection({ farmId, zones }: { farmId: number; zones: ZoneD
     e.preventDefault()
     if (!file) return setError('Choose a leaf photo first.')
     if (!crop && zoneId == null) return setError('Choose the crop, or a zone with a crop planted.')
-    screen.mutate({ file, crop: crop || null, zoneId })
+    screen.mutate({ file, crop: crop || null, zoneId, part })
   }
 
   return (
     <div className="space-y-5">
       <div className="grid gap-5 lg:grid-cols-5">
-        <Card title="Leaf disease check" className="lg:col-span-2">
+        <Card title="Disease check" className="lg:col-span-2">
           <p className="rounded-lg border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-sage-200">A first screening, not a diagnosis: confirm with an agronomist before any treatment. The models were trained on lab photos, so accuracy on field photos is limited (see <em>About the disease models</em>).</p>
           <form onSubmit={submit} className="mt-4 space-y-4" aria-label="Check a leaf for disease">
+            <div role="radiogroup" aria-label="What the photo shows" className="flex gap-1 rounded-full border border-white/10 p-0.5 text-sm">
+              {(['leaf', 'fruit'] as const).map((p) => (
+                <button key={p} type="button" role="radio" aria-checked={part === p} onClick={() => choosePart(p)}
+                  className={`flex-1 rounded-full px-3 py-1.5 ${part === p ? 'bg-white/10 text-paper' : 'text-sage-400 hover:text-sage-100'}`}>
+                  {p === 'leaf' ? 'Leaf' : 'Fruit'}
+                </button>
+              ))}
+            </div>
+            {part === 'fruit' && (
+              <p className="text-xs text-sage-400">
+                Fruit checks cover: {crops.join(', ') || 'none installed'} (citrus canker, melanose or healthy). Other fruits need their own model and are not supported yet.
+              </p>
+            )}
             <label className="block text-sm text-sage-200">
-              Photo of one leaf
+              {part === 'leaf' ? 'Photo of one leaf' : 'Photo of one fruit'}
               <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="mt-1.5 block w-full text-sm text-sage-300 file:mr-3 file:rounded-full file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-paper" onChange={(e) => pick(e.target.files?.[0] ?? null)} />
             </label>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -187,7 +208,7 @@ export function DiseaseSection({ farmId, zones }: { farmId: number; zones: ZoneD
             </div>
             {preview && <img src={preview} alt="Leaf to check" className="max-h-64 w-full rounded-xl object-contain" />}
             {(error ?? screen.error) && <FormAlert>{error ?? screen.error?.message}</FormAlert>}
-            <SubmitButton busy={screen.isPending}>{screen.isPending ? 'Checking…' : 'Check leaf'}</SubmitButton>
+            <SubmitButton busy={screen.isPending}>{screen.isPending ? 'Checking…' : part === 'leaf' ? 'Check leaf' : 'Check fruit'}</SubmitButton>
           </form>
         </Card>
         <Card title="Disease result" className="lg:col-span-3">

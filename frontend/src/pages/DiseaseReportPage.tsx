@@ -23,6 +23,7 @@ const RecordSchema = z.object({
   explanation: z
     .object({
       outcome: z.string().optional(),
+      part: z.string().optional(),
       crop: z.string().nullable().optional(),
       crop_source: z.string().nullable().optional(),
       model: z.object({ name: z.string(), version: z.string() }).passthrough().nullable().optional(),
@@ -102,7 +103,8 @@ export function DiseaseReportPage() {
             <dt className="text-sage-400">Result</dt><dd>{OUTCOME[outcome] ?? outcome}</dd>
             <dt className="text-sage-400">Model confidence</dt><dd>{pct(r.confidence)}{e.margin != null && ` (lead over 2nd choice: ${(e.margin * 100).toFixed(1)} points)`}</dd>
             <dt className="text-sage-400">Crop</dt><dd>{e.crop ?? '—'}{e.crop_source ? ` (from ${e.crop_source})` : ''}</dd>
-            {!r.is_healthy && <><dt className="text-sage-400">Severity</dt><dd>{r.severity}{r.affected_area_pct != null && ` · about ${r.affected_area_pct} % of the leaf discoloured (colour estimate)`}</dd></>}
+            <dt className="text-sage-400">Photo of</dt><dd>{e.part === 'fruit' ? 'Fruit' : 'Leaf'}</dd>
+            {!r.is_healthy && <><dt className="text-sage-400">Severity</dt><dd>{e.part === 'fruit' ? 'not estimated for fruit photos' : <>{r.severity}{r.affected_area_pct != null && ` · about ${r.affected_area_pct} % of the leaf discoloured (colour estimate)`}</>}</dd></>}
             <dt className="text-sage-400">Conclusion</dt><dd>{e.reason ?? '—'}</dd>
           </dl>
         </div>

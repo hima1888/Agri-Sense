@@ -12,7 +12,7 @@ from app.vision import disease
 
 STORED_OUTCOMES = {"possible_disease", "possible_healthy", "uncertain"}
 EXPLANATION_KEYS = (
-    "outcome", "crop", "crop_source", "model", "margin", "checks",
+    "outcome", "part", "crop", "crop_source", "model", "margin", "checks",
     "quality", "reason", "limitations", "image_sha256",
 )  # fmt: skip
 
@@ -53,12 +53,18 @@ def model_version(db: Session, m: disease.DiseaseModel) -> ModelVersion:
 
 
 def screen_and_store(
-    db: Session, user: User, farm_id: int, zone: FarmZone | None, crop: str | None, data: bytes
+    db: Session,
+    user: User,
+    farm_id: int,
+    zone: FarmZone | None,
+    crop: str | None,
+    data: bytes,
+    part: str = "leaf",
 ) -> dict[str, Any]:
     crop_source = "request"
     if not crop and zone is not None:
         crop, crop_source = zone_crop(db, zone), "zone crop cycle"
-    result = disease.screen(data, crop)
+    result = disease.screen(data, crop, part)
     result["crop_source"] = crop_source if crop else None
     det: DiseaseDetection | None = None
     if result["outcome"] in STORED_OUTCOMES:

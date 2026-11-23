@@ -123,3 +123,30 @@ Smaller photos made the wrong corn answer *more* confident. Confidence must not 
   Refusals (`cannot_identify`, `not_a_leaf`, `unsupported_crop`) are returned but not stored.
 * Models are loaded only from `backend/ml_models/*.onnx` after a SHA-256 check; no pickle and no PyTorch in the app.
   To rebuild them, run `backend/scripts/convert_disease_models.py` in a separate throwaway environment.
+
+
+## Fruit: orange-fruit model (added later)
+
+* Source: [dima806/orange_fruit_disease_detection](https://huggingface.co/dima806/orange_fruit_disease_detection),
+  Apache-2.0, ViT-base/16 (85.8 M parameters), classes: citrus canker, healthy, melanose. Self-reported 97.9 %
+  on 3,600 images of its own dataset (not independently verified).
+* No openly licensed model covering disease on many fruits was found; this is the only fruit-disease model used.
+* Conversion: `backend/scripts/convert_fruit_model.py` exports ONNX opset 17 and quantises weights to int8
+  (343 MB to 87 MB) so it fits git and a 512 MB server. On 16 random inputs int8 and PyTorch agree on every
+  top class (largest probability difference 0.013), and they agree on every real photo below.
+* Rules: the user chooses **Fruit** and the crop (only orange is supported). If the produce model confidently sees a
+  different fruit, the photo is refused. Thresholds are the same as for leaves (top-1 >= 60 %, margin >= 20).
+  Severity is not estimated for fruit (the leaf colour heuristic does not apply).
+
+Real photos (Wikimedia Commons; public domain or CC BY-SA), int8 model:
+
+| Photo | Truth | Model | App outcome |
+|---|---|---|---|
+| Citrus Canker (49949888707) | canker on fruit | citrus canker 78.9 % | possible disease, correct |
+| Citrus canker on fruit | canker on fruit | citrus canker 61.7 % | possible disease, correct |
+| Mandarin Oranges (Citrus Reticulata) | healthy fruit | healthy 75.2 % | possibly healthy, correct |
+| Ambersweet oranges (cut) | healthy fruit | healthy 53.0 % | uncertain (below 60 %) |
+| Citrus Canker (20190106-APHIS-CHRP-0058) | faint canker, green fruit | healthy 62.4 % | possibly healthy, **wrong** |
+
+Five photos is a smoke test, not an accuracy measurement: 3 right, 1 uncertain, 1 missed. Peak memory with all four
+models loaded in one process: 320 MB.

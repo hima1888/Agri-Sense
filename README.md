@@ -3,7 +3,7 @@
 An AI, IoT and 3D digital-twin platform for sustainable farming.
 **See → Sense → Analyze → Predict → Recommend → Act → Learn.**
 
-**Live demo:** https://agri-sense-web.onrender.com (free hosting: the first visit after a quiet period can take about a minute while the server wakes up; the two leaf-disease models are not deployed online, see docs/DEPLOYMENT.md)
+**Live demo:** https://agri-sense-web.onrender.com (free hosting: the first visit after a quiet period can take about a minute while the server wakes up)
 
 > **Version 1.0.0. All 21 build phases complete.** Every AI output shows its prediction, confidence, the factors
 > behind it, a recommendation, and its limitations. Simulated data is labelled wherever it appears.
@@ -17,7 +17,7 @@ An AI, IoT and 3D digital-twin platform for sustainable farming.
 | Dashboard | KPIs, weather, zones, alerts | Open-Meteo forecast | [DASHBOARD](docs/DASHBOARD.md) |
 | 3D digital twin | interactive farm model coloured by live data | React Three Fiber | [TWIN](docs/TWIN.md) |
 | Soil intelligence | root-zone water balance and soil score | FAO-56 | [SOIL](docs/SOIL.md) |
-| Plant vision | produce recognition with heat-map; leaf-disease screening | ONNX Runtime (3 models) | [VISION](docs/VISION.md), [DISEASE_MODELS](docs/DISEASE_MODELS.md) |
+| Plant vision | produce recognition with heat-map; leaf-disease screening (16 crops); orange fruit-disease screening | ONNX Runtime (4 models) | [VISION](docs/VISION.md), [DISEASE_MODELS](docs/DISEASE_MODELS.md) |
 | Disease knowledge | what it is, symptoms, causes, spread, management, prevention, monitoring, when to get advice, for every disease the models output | structured knowledge layer | [GROWTH_AND_KNOWLEDGE](docs/GROWTH_AND_KNOWLEDGE.md) |
 | Crop growth | seed → harvest in 8 stages with today's stage per zone, animated from the data | FAO-56 Table 11 | [GROWTH_AND_KNOWLEDGE](docs/GROWTH_AND_KNOWLEDGE.md) |
 | Recommendations | explainable advice with evidence | rules over soil, weather, sensors, disease | [RECOMMENDATIONS](docs/RECOMMENDATIONS.md) |

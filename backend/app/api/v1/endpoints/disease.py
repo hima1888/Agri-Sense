@@ -1,6 +1,6 @@
 """Leaf-disease screening endpoints (Phase 10)."""
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, File, Form, Response, UploadFile
 from fastapi.responses import FileResponse
@@ -28,6 +28,7 @@ def models(user: CurrentUser) -> dict[str, Any]:
     return {
         "models": disease.models_info(),
         "supported_crops": disease.supported_crops(),
+        "supported_fruits": disease.supported_fruits(),
         "thresholds": {"min_top1": disease.MIN_TOP1, "min_margin": disease.MIN_MARGIN},
         "limitations": disease.COMMON_LIMITATIONS,
     }
@@ -41,8 +42,9 @@ def screen(
     file: Annotated[UploadFile, File(description="JPEG, PNG or WebP photo of one leaf")],
     crop: Annotated[str | None, Form(description="Crop in the photo; defaults to the zone crop")] = None,
     zone_id: Annotated[int | None, Form()] = None,
+    part: Annotated[Literal["leaf", "fruit"], Form(description="leaf or fruit")] = "leaf",
 ) -> dict[str, Any]:
-    """Screen a leaf photo. Possible/uncertain results are stored; refusals are returned but not stored."""
+    """Screen a leaf or fruit photo. Possible/uncertain results are stored; refusals are not."""
     farm = access.farm_for(db, user, farm_id)
     zone = access.zone_for(db, user, zone_id) if zone_id is not None else None
     if zone is not None and zone.farm_id != farm.id:
@@ -50,7 +52,7 @@ def screen(
     data = file.file.read()
     try:
         validate_upload(file.content_type, data)
-        result = svc.screen_and_store(db, user, farm.id, zone, crop, data)
+        result = svc.screen_and_store(db, user, farm.id, zone, crop, data, part)
     except recognizer.BadImageError as e:
         raise UnprocessableError(str(e)) from e
     except recognizer.ModelUnavailableError as e:

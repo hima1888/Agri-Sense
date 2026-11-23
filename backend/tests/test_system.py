@@ -88,7 +88,7 @@ def test_inference_status_reports_installed_models(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(recognizer, "model_available", lambda: True)
     monkeypatch.setattr(disease, "model_available", lambda m: False)
     s = inference_status()
-    assert s.state == "degraded" and s.detail.startswith("1 of 3 models installed")
+    assert s.state == "degraded" and s.detail.startswith("1 of 4 models installed")
     monkeypatch.setattr(recognizer, "model_available", lambda: False)
     assert inference_status().state == "not_configured"
     monkeypatch.setattr(recognizer, "model_available", lambda: True)

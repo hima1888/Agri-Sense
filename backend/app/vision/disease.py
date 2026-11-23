@@ -48,6 +48,8 @@ class DiseaseModel:
     labels: list[Label]
     published_accuracy: str
     limitations: list[str] = field(default_factory=list)
+    part: str = "leaf"  # what the photo must show: "leaf" or "fruit"
+    square_resize: bool = True  # straight to 224x224 (ViT); False: shortest edge 256 + centre crop
 
     @property
     def path(self) -> Path:
@@ -101,6 +103,7 @@ PLANTVILLAGE = DiseaseModel(
     licence="'other' (unspecified)",
     architecture="MobileNetV2 1.0, 2.27 M parameters",
     preprocessing="shortest edge 256 bilinear (long side floored), centre crop 224, /255, (x - 0.5) / 0.5",
+    square_resize=False,
     labels=[
         ("apple", "Apple scab"),
         ("apple", "Black rot"),
@@ -148,7 +151,30 @@ PLANTVILLAGE = DiseaseModel(
     ],
 )
 
-MODELS = {m.key: m for m in (VIT, PLANTVILLAGE)}
+ORANGE_FRUIT = DiseaseModel(
+    key="orange_fruit",
+    name="orange-fruit-disease-vit",
+    version="hf-dima806-onnx17-int8",
+    file="orange_fruit_vit_int8.onnx",
+    sha256="6be1fcb22f55eec8ef6b0a62c8fbf75366671d9b2cb09175108478c564985ec7",
+    source="https://huggingface.co/dima806/orange_fruit_disease_detection",
+    weights_source="model.safetensors (main), ONNX opset 17, weights dynamically quantised to int8",
+    licence="Apache-2.0",
+    architecture="ViT-base (patch 16, hidden 768, 12 layers), 85.8 M parameters",
+    preprocessing="resize to 224x224 bilinear, /255, (x - 0.5) / 0.5",
+    labels=[("orange", "Citrus canker"), ("orange", None), ("orange", "Melanose")],
+    published_accuracy="97.9 % self-reported on 3,600 images of its own dataset; unverified",
+    limitations=[
+        "Orange fruit photos only. It knows three answers (citrus canker, melanose, healthy) and has no "
+        "'not an orange' class, so every photo gets one of the three.",
+        "Weights compressed to int8 to fit the server; see docs/DISEASE_MODELS.md for the measured drift.",
+    ],
+    part="fruit",
+)
+
+MODELS = {m.key: m for m in (VIT, PLANTVILLAGE, ORANGE_FRUIT)}
+FRUIT_MODELS = {c: m for m in (ORANGE_FRUIT,) for c in m.crops}
+PARTS = ("leaf", "fruit")
 CROP_ALIASES = {"maize": "corn", "capsicum": "bell pepper", "sweet pepper": "bell pepper", "paddy": "rice"}
 
 COMMON_LIMITATIONS = [
@@ -167,13 +193,19 @@ def normalise_crop(name: str | None) -> str | None:
     return CROP_ALIASES.get(n, n)
 
 
-def model_for_crop(crop: str) -> DiseaseModel | None:
-    """ViT for the crops it covers; PlantVillage only for crops the ViT lacks."""
+def model_for_crop(crop: str, part: str = "leaf") -> DiseaseModel | None:
+    """Fruit: the fruit model for that crop. Leaf: ViT for the crops it covers; PlantVillage for the rest."""
+    if part == "fruit":
+        return FRUIT_MODELS.get(crop)
     if crop in VIT.crops:
         return VIT
     if crop in PLANTVILLAGE.crops:
         return PLANTVILLAGE
     return None
+
+
+def supported_fruits() -> dict[str, str]:
+    return {c: m.key for c, m in sorted(FRUIT_MODELS.items())}
 
 
 def supported_crops() -> dict[str, str]:
@@ -211,7 +243,7 @@ def _session(m: DiseaseModel) -> Any:
 
 def preprocess(m: DiseaseModel, img: Image.Image) -> np.ndarray:
     """Matches the models' Hugging Face image processors exactly (verified: max difference 0)."""
-    if m is VIT:
+    if m.square_resize:
         img = img.resize((224, 224), Image.Resampling.BILINEAR)
     else:
         w, h = img.size
@@ -259,11 +291,14 @@ def severity_from_area(area: float | None) -> str:
 
 
 # ------------------------------------------------------------------ screening
-def screen(data: bytes, crop_name: str | None) -> dict[str, Any]:
+def screen(data: bytes, crop_name: str | None, part: str = "leaf") -> dict[str, Any]:
+    if part not in PARTS:
+        raise ValueError(f"part must be one of {PARTS}")
     crop = normalise_crop(crop_name)
     img = decode(data)
     checks: list[dict[str, Any]] = []
     base: dict[str, Any] = {
+        "part": part,
         "crop": crop,
         "model": None,
         "outcome": "cannot_identify",
@@ -296,25 +331,36 @@ def screen(data: bytes, crop_name: str | None) -> dict[str, Any]:
             }
         )
         return done("Choose the crop in the photo; the models cannot be trusted to tell crops apart.")
-    m = model_for_crop(crop)
+    m = model_for_crop(crop, part)
     checks.append({"rule": "crop_supported", "passed": m is not None,
-                   "detail": f"{crop} -> {m.name if m else 'no model covers this crop'}"})  # fmt: skip
+                   "detail": f"{crop} {part} -> {m.name if m else 'no model covers this'}"})  # fmt: skip
     if m is None:
         base["outcome"] = "unsupported_crop"
-        return done(f"No installed model covers {crop}. Supported: {', '.join(supported_crops())}.")
+        listed = ", ".join(supported_fruits() if part == "fruit" else supported_crops())
+        plural = "leaves" if part == "leaf" else "fruits"
+        return done(f"No installed model checks {crop} {plural}. Supported for {plural}: {listed}.")
     base["model"] = {"key": m.key, "name": m.name, "version": m.version}
 
-    # Rule 4: produce photos are not leaves.
     produce = recognizer.recognize(data, explain=False)
     is_produce = produce["outcome"] == "recognized"
-    checks.append({"rule": "looks_like_leaf", "passed": not is_produce,
-                   "detail": f"produce model: {produce['label']} {produce['confidence']:.0%}" if is_produce
-                   else "produce model did not recognise fruit/vegetable"})  # fmt: skip
-    if is_produce:
-        base["outcome"] = "not_a_leaf"
-        return done(
-            f"The photo looks like {produce['label']} (produce), not a leaf. Photograph a single affected leaf."
-        )
+    seen = f"produce model: {produce['label']} {produce['confidence']:.0%}" if is_produce else ""
+    if part == "leaf":
+        # Rule 4: produce photos are not leaves.
+        checks.append({"rule": "looks_like_leaf", "passed": not is_produce,
+                       "detail": seen or "produce model did not recognise fruit/vegetable"})  # fmt: skip
+        if is_produce:
+            base["outcome"] = "not_a_leaf"
+            return done(
+                f"The photo looks like {produce['label']} (produce), not a leaf. Photograph a single affected leaf."
+            )
+    else:
+        # Rule 4 (fruit): refuse when the produce model confidently sees a different fruit or vegetable.
+        other = is_produce and produce["label"] != crop
+        checks.append({"rule": "looks_like_chosen_fruit", "passed": not other,
+                       "detail": seen or "produce model named no fruit (diseased fruit often is not recognised)"})  # fmt: skip
+        if other:
+            base["outcome"] = "not_a_leaf"
+            return done(f"The photo looks like {produce['label']}, not {crop}. Photograph one {crop} fruit.")
 
     probs = run(m, img)
     order = [int(i) for i in np.argsort(probs)[::-1]]
@@ -349,13 +395,17 @@ def screen(data: bytes, crop_name: str | None) -> dict[str, Any]:
         return done("Uncertain: confidence or margin too low. See the candidates.", m.limitations)
 
     base["outcome"] = "possible_healthy" if top_disease is None else "possible_disease"
-    if top_disease is not None:
+    if top_disease is not None and part == "leaf":
         base["affected_area_pct"] = lesion_area(img)
         base["severity"] = severity_from_area(base["affected_area_pct"])
+    elif top_disease is not None:
+        base["severity"] = "low"  # not estimated: the leaf colour heuristic does not apply to fruit
     else:
         base["severity"] = "none"
     extra = list(m.limitations)
-    if top_disease is not None:
+    if top_disease is not None and part == "fruit":
+        extra.append("Severity is not estimated for fruit photos; 'low' is stored only as a placeholder.")
+    elif top_disease is not None:
         extra.append(
             "Affected area is a colour heuristic (non-green share of leaf pixels), not a measured severity."
         )
@@ -369,11 +419,19 @@ def models_info() -> list[dict[str, Any]]:
             "source": m.source, "weights_source": m.weights_source, "licence": m.licence,
             "architecture": m.architecture, "preprocessing": m.preprocessing, "input": [1, 3, 224, 224],
             "crops": m.crops, "classes": [label_text(m, i) for i in range(len(m.labels))],
-            "used_for": [c for c, k in supported_crops().items() if k == m.key],
+            "used_for": [c for c, k in {**supported_crops(), **supported_fruits()}.items() if k == m.key],
+            "part": m.part,
             "published_accuracy": m.published_accuracy, "limitations": m.limitations,
         }
-        for m in (VIT, PLANTVILLAGE)
+        for m in (VIT, PLANTVILLAGE, ORANGE_FRUIT)
     ]  # fmt: skip
 
 
-__all__ = ["BadImageError", "ModelUnavailableError", "models_info", "screen", "supported_crops"]
+__all__ = [
+    "BadImageError",
+    "ModelUnavailableError",
+    "models_info",
+    "screen",
+    "supported_crops",
+    "supported_fruits",
+]

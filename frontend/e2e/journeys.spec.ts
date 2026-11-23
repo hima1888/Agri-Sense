@@ -160,3 +160,28 @@ test('TEST 8: picking a crop offers a new zone for it; the zone is created with 
     expect((await page.request.delete(`${API}/zones/${zoneId}`, { headers: { Authorization: `Bearer ${await token(page)}` } })).status()).toBe(204)
   }
 })
+
+test('TEST 9: a fruit photo goes through the orange-fruit model; canker is found and the report says fruit', async ({ page }) => {
+  await page.goto('/vision?tab=disease')
+  await page.getByRole('radio', { name: 'Fruit' }).click()
+  await page.getByLabel('Photo of one fruit').setInputFiles(photo('orange_citrus_canker_fruit.jpg'))
+  await page.getByRole('form', { name: 'Check a leaf for disease' }).locator('select').nth(0).selectOption('orange')
+  const res = page.waitForResponse((r) => r.url().endsWith('/vision/disease-checks') && r.request().method() === 'POST')
+  await page.getByRole('button', { name: 'Check fruit' }).click()
+  const body = (await (await res).json()) as Record<string, unknown>
+  const id = body.detection_id as number | null
+  try {
+    expect(body.part).toBe('fruit')
+    expect(body.outcome).toBe('possible_disease')
+    expect((body.model as { key: string }).key).toBe('orange_fruit')
+    expect(body.label).toBe('Orange: Citrus canker')
+    const result = page.getByRole('region', { name: 'Disease result' })
+    await expect(result.getByRole('region', { name: 'About Citrus canker' })).toBeVisible()
+    await expect(result.getByText('Severity is not estimated for fruit photos.')).toBeVisible()
+    await result.getByRole('link', { name: 'Open full report (PDF)' }).click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Orange: Citrus canker' })).toBeVisible()
+    await expect(page.getByText('not estimated for fruit photos', { exact: true })).toBeVisible()
+  } finally {
+    if (id != null) expect((await page.request.delete(`${API}/vision/disease-checks/${id}`, { headers: { Authorization: `Bearer ${await token(page)}` } })).status()).toBe(204)
+  }
+})

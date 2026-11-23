@@ -39,6 +39,7 @@ export type HealthyGuidance = z.infer<typeof HealthySchema>
 
 export const ScreeningSchema = z.object({
   outcome: z.enum(OUTCOMES),
+  part: z.enum(['leaf', 'fruit']).default('leaf'),
   crop: z.string().nullable(),
   crop_source: z.string().nullable(),
   model: z.object({ key: z.string(), name: z.string(), version: z.string(), id: num.nullable().optional() }).nullable(),
@@ -86,6 +87,7 @@ const ModelsSchema = z.object({
       available: z.boolean(),
       architecture: z.string(),
       used_for: z.array(z.string()),
+      part: z.enum(['leaf', 'fruit']).default('leaf'),
       published_accuracy: z.string(),
       licence: z.string(),
       source: z.string(),
@@ -93,6 +95,7 @@ const ModelsSchema = z.object({
     }),
   ),
   supported_crops: z.record(z.string(), z.string()),
+  supported_fruits: z.record(z.string(), z.string()).default({}),
   thresholds: z.object({ min_top1: num, min_margin: num }),
   limitations: z.array(z.string()),
 })
@@ -120,12 +123,15 @@ export function useDiseaseChecks(farmId: number | null) {
   })
 }
 
+export type Part = 'leaf' | 'fruit'
+
 export function useScreenLeaf(farmId: number) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ file, crop, zoneId }: { file: File; crop: string | null; zoneId: number | null }) => {
+    mutationFn: ({ file, crop, zoneId, part = 'leaf' }: { file: File; crop: string | null; zoneId: number | null; part?: Part }) => {
       const form = new FormData()
       form.append('file', file)
+      form.append('part', part)
       if (crop) form.append('crop', crop)
       if (zoneId != null) form.append('zone_id', String(zoneId))
       return apiSend('POST', `/farms/${farmId}/vision/disease-checks`, ScreeningSchema, form)

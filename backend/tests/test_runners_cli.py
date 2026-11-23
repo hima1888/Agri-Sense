@@ -65,9 +65,11 @@ def test_simulator_fills_the_gap_left_while_the_server_slept(api: TestClient, db
     runner = SimulatorRunner(shared(db), Broadcaster(), interval_seconds=60)
     now = datetime.now(UTC).replace(second=0, microsecond=0)
     runner.tick_once(now - timedelta(hours=3))  # last reading, then the server "slept" for 3 h
-    count = lambda: db.scalar(  # noqa: E731
-        select(func.count()).select_from(SensorReading).join(Sensor).where(Sensor.farm_id == z["farm_id"])
-    ) or 0
+
+    def count() -> int:
+        q = select(func.count()).select_from(SensorReading).join(Sensor)
+        return db.scalar(q.where(Sensor.farm_id == z["farm_id"])) or 0
+
     sensors = count()  # one reading per sensor so far
     assert sensors > 0
     assert runner.fill_gaps(now) >= 17 * sensors  # 10-minute steps across the 3 h gap

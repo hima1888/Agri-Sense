@@ -18,6 +18,8 @@ FIX = Path(__file__).parents[1] / "fixtures"
 CORN = (FIX / "corn_rust_field.jpg").read_bytes()
 WHEAT = (FIX / "wheat_leaf_rust_field.jpg").read_bytes()
 BANANA = (FIX / "banana.jpg").read_bytes()
+ORANGE_CANKER = (FIX / "orange_citrus_canker_fruit.jpg").read_bytes()
+ORANGE_HEALTHY = (FIX / "orange_healthy_fruit.jpg").read_bytes()
 needs_models = pytest.mark.skipif(
     not (disease.model_available(disease.VIT) and disease.model_available(disease.PLANTVILLAGE)),
     reason="disease models not installed (docs/DISEASE_MODELS.md)",
@@ -59,7 +61,7 @@ def test_routing_prefers_vit_and_uses_plantvillage_only_for_other_crops() -> Non
 
 def test_preprocessing_shapes_and_normalisation() -> None:
     img = Image.new("RGB", (640, 300), (255, 0, 0))
-    for m in (disease.VIT, disease.PLANTVILLAGE):
+    for m in (disease.VIT, disease.PLANTVILLAGE, disease.ORANGE_FRUIT):
         x = disease.preprocess(m, img)
         assert x.shape == (1, 3, 224, 224) and x.dtype == np.float32
         assert x[0, 0].max() == pytest.approx(1.0) and x[0, 1].min() == pytest.approx(-1.0)
@@ -113,7 +115,7 @@ def test_missing_or_unsupported_crop(fake_run: Any) -> None:
     fake_run["p"] = lambda m: probs_for(m, {})
     assert disease.screen(CORN, None)["outcome"] == "cannot_identify"
     r = disease.screen(CORN, "mango")
-    assert r["outcome"] == "unsupported_crop" and "Supported:" in r["reason"]
+    assert r["outcome"] == "unsupported_crop" and "Supported for leaves:" in r["reason"]
     assert "models" not in fake_run  # no model was run
 
 
@@ -164,7 +166,8 @@ def screen(client: TestClient, farm_id: int, data: bytes, **form: Any) -> Any:
 
 def test_models_endpoint(api: TestClient) -> None:
     info = ok(api.get(f"{V1}/vision/disease/models"))
-    assert [m["key"] for m in info["models"]] == ["crop_vit", "plantvillage"]
+    assert [m["key"] for m in info["models"]] == ["crop_vit", "plantvillage", "orange_fruit"]
+    assert info["supported_fruits"] == {"orange": "orange_fruit"} and info["models"][2]["part"] == "fruit"
     assert (
         info["supported_crops"]["rice"] == "crop_vit" and info["supported_crops"]["tomato"] == "plantvillage"
     )
@@ -236,3 +239,56 @@ def test_healthy_field_leaf_is_refused_not_misdiagnosed() -> None:
     assert (
         disease.label_text(disease.PLANTVILLAGE, int(raw.argmax())) == "Tomato: Late blight"
     )  # documented model error
+
+
+# --- fruit (orange) -----------------------------------------------------------------
+needs_fruit_model = pytest.mark.skipif(
+    not disease.model_available(disease.ORANGE_FRUIT), reason="orange fruit model not installed"
+)
+
+
+def test_fruit_routing_and_unsupported_fruit(fake_run: Any) -> None:
+    assert disease.model_for_crop("orange", "fruit") is disease.ORANGE_FRUIT
+    assert disease.model_for_crop("orange", "leaf") is disease.PLANTVILLAGE  # citrus greening, a leaf model
+    assert disease.model_for_crop("apple", "fruit") is None
+    r = disease.screen(BANANA, "apple", "fruit")
+    assert r["outcome"] == "unsupported_crop" and "Supported for fruits: orange" in r["reason"]
+    with pytest.raises(ValueError):
+        disease.screen(BANANA, "orange", "stem")
+
+
+def test_fruit_rules_with_controlled_probabilities(fake_run: Any) -> None:
+    fake_run["p"] = lambda m: probs_for(m, {("orange", "Citrus canker"): 0.85})
+    r = disease.screen(ORANGE_CANKER, "orange", "fruit")
+    assert (r["outcome"], r["label"], r["part"]) == ("possible_disease", "Orange: Citrus canker", "fruit")
+    assert r["affected_area_pct"] is None and r["severity"] == "low"  # leaf heuristic not applied to fruit
+    assert any("not estimated for fruit" in x for x in r["limitations"])
+    assert [c["rule"] for c in r["checks"]][:2] == ["crop_supported", "looks_like_chosen_fruit"]
+    fake_run["p"] = lambda m: probs_for(m, {("orange", "Melanose"): 0.5, ("orange", None): 0.4})
+    assert disease.screen(ORANGE_CANKER, "orange", "fruit")["outcome"] == "uncertain"
+
+
+def test_a_different_fruit_is_refused_for_an_orange_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        recognizer,
+        "recognize",
+        lambda data, explain=True: {"outcome": "recognized", "label": "banana", "confidence": 0.9},
+    )
+    r = disease.screen(BANANA, "orange", "fruit")
+    assert r["outcome"] == "not_a_leaf" and "looks like banana, not orange" in r["reason"]
+
+
+@needs_fruit_model
+def test_real_orange_model_on_real_fruit_photos(api: TestClient, farm: dict[str, Any]) -> None:
+    sick = ok(screen(api, farm["id"], ORANGE_CANKER, crop="orange", part="fruit"), 201)
+    assert (sick["outcome"], sick["label"], sick["model"]["key"]) == (
+        "possible_disease",
+        "Orange: Citrus canker",
+        "orange_fruit",
+    )
+    assert sick["confidence"] > 0.7 and sick["knowledge_key"] == "citrus_canker"
+    assert sick["knowledge"]["pathogen"].startswith("Xanthomonas")
+    rec = ok(api.get(f"{V1}/vision/disease-checks/{sick['detection_id']}"))
+    assert rec["explanation"]["part"] == "fruit" and rec["knowledge_key"] == "citrus_canker"
+    well = ok(screen(api, farm["id"], ORANGE_HEALTHY, crop="orange", part="fruit"), 201)
+    assert (well["outcome"], well["label"]) == ("possible_healthy", "Orange: healthy")
