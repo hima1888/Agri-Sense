@@ -215,5 +215,6 @@ class DiseaseModels(OutputModel):
     models: list[DiseaseModelInfo]
     supported_crops: dict[str, str]
     supported_fruits: dict[str, str] = Field(default_factory=dict)
+    crop_groups: dict[str, str] = Field(default_factory=dict)
     thresholds: dict[str, float]
     limitations: list[str]

@@ -150,3 +150,29 @@ Real photos (Wikimedia Commons; public domain or CC BY-SA), int8 model:
 
 Five photos is a smoke test, not an accuracy measurement: 3 right, 1 uncertain, 1 missed. Peak memory with all four
 models loaded in one process: 320 MB.
+
+
+## Fruit and vegetable crops: 12 ConvNeXt leaf models (added later)
+
+* Source: [ixrbhii](https://huggingface.co/ixrbhii) `<crop>-disease-convnext`, CC BY 4.0, timm ConvNeXt-Small
+  (49.5 M parameters), one model per crop, self-reported 91 to 100 % on held-out photos from their own datasets.
+* Crops: fruit crops mango, banana, guava, papaya, pomegranate, lemon (citrus model); vegetable crops brinjal, okra,
+  cucumber, bitter gourd, bottle gourd, watermelon. These judge a **leaf** photo of the plant; only orange has a model
+  for the fruit itself.
+* Conversion: `backend/scripts/convert_leaf_models.py` (ONNX opset 17, int8 weights, ~50 MB each). Preprocessing
+  matches timm (shortest edge 224, centre crop, ImageNet mean/std); the app's answers match PyTorch on every real photo.
+* Memory: at most 2 disease models stay loaded (least recently used is unloaded, ORT memory arena off). Cycling
+  through all 15 disease models in a 512 MB container peaked at 324 MB.
+
+Real field photos (Wikimedia Commons, CC0 / public domain / CC BY), through the app:
+
+| Photo | Truth | App result |
+|---|---|---|
+| Banana black leaf streak (2 photos) | black Sigatoka | Black Streak 90.8 % and 86.0 %, correct |
+| Citrus canker on lemon-type leaf | canker | Canker 80.3 %, correct |
+| Cercospora leaf spot on eggplant | Cercospora | Cercospora Spot 92.9 %, correct |
+| Papaya ringspot virus, leaf mosaic | ringspot virus | "Mosaic" 66.8 % (symptom right, virus name not) |
+| Papaya ringspot virus, leaf | ringspot virus | refused: produce check thought it was produce |
+| Cucumber downy mildew | downy mildew | Angular Leaf Spot 67.5 %, **wrong** |
+
+7 photos is a smoke test, not an accuracy measurement: 4 right, 1 partly right, 1 refused, 1 wrong.

@@ -185,3 +185,21 @@ test('TEST 9: a fruit photo goes through the orange-fruit model; canker is found
     if (id != null) expect((await page.request.delete(`${API}/vision/disease-checks/${id}`, { headers: { Authorization: `Bearer ${await token(page)}` } })).status()).toBe(204)
   }
 })
+
+test('TEST 10: the crop list is grouped (fruit / vegetable / field) and a banana leaf is diagnosed by its own model', async ({ page }) => {
+  await page.goto('/vision?tab=disease')
+  const crop = page.getByRole('form', { name: 'Check a leaf for disease' }).locator('select').nth(0)
+  await expect(crop.locator('optgroup[label^="Fruit crops"] option')).toHaveCount(14)
+  await expect(crop.locator('optgroup[label^="Vegetable crops"] option')).toHaveCount(10)
+  await expect(crop.locator('optgroup[label^="Vegetable crops"] option', { hasText: 'brinjal' })).toHaveCount(1)
+  const { body } = await checkLeaf(page, 'banana_black_streak_leaf.jpg', 'banana')
+  const id = body.detection_id as number | null
+  try {
+    expect(body.outcome).toBe('possible_disease')
+    expect((body.model as { key: string }).key).toBe('leaf_banana')
+    expect(body.label).toBe('Banana: Black Streak')
+    await expect(page.getByRole('region', { name: 'Disease result' }).getByRole('region', { name: /About Black leaf streak/ })).toBeVisible()
+  } finally {
+    if (id != null) expect((await page.request.delete(`${API}/vision/disease-checks/${id}`, { headers: { Authorization: `Bearer ${await token(page)}` } })).status()).toBe(204)
+  }
+})

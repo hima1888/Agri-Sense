@@ -9,8 +9,10 @@ agronomist; the API and UI say so. A test checks that every model label maps to 
 # ruff: noqa: E501, RUF001  (prose; en dashes in ranges are intended)
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any
+
+from app.knowledge.more_crops import EXTRA_CROPS, MORE, MORE_LABELS
 
 SOURCE = (
     "General guidance compiled from standard plant-pathology references (APS disease compendia, CABI Crop "
@@ -683,6 +685,10 @@ ENTRIES: tuple[DiseaseInfo, ...] = (
         "As soon as stripes are seen in cool weather: it spreads quickly.",
     ),
 )
+# The 12 fruit and vegetable crops covered by the ixrbhii leaf models (app.knowledge.more_crops).
+ENTRIES = tuple(replace(e, crops=e.crops + EXTRA_CROPS.get(e.key, ())) for e in ENTRIES) + tuple(
+    E(*m) for m in MORE
+)
 
 BY_KEY = {e.key: e for e in ENTRIES}
 
@@ -721,6 +727,7 @@ LABEL_MAP: dict[tuple[str, str], str] = {
     ("rice", "Leaf blast"): "rice_leaf_blast",
     ("wheat", "Brown rust"): "wheat_leaf_rust",
     ("wheat", "Yellow (stripe) rust"): "wheat_stripe_rust",
+    **MORE_LABELS,
 }
 
 HEALTHY_GUIDANCE: dict[str, Any] = {

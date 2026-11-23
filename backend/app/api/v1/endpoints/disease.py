@@ -29,6 +29,7 @@ def models(user: CurrentUser) -> dict[str, Any]:
         "models": disease.models_info(),
         "supported_crops": disease.supported_crops(),
         "supported_fruits": disease.supported_fruits(),
+        "crop_groups": {c: disease.CROP_GROUPS.get(c, "field") for c in disease.supported_crops()},
         "thresholds": {"min_top1": disease.MIN_TOP1, "min_margin": disease.MIN_MARGIN},
         "limitations": disease.COMMON_LIMITATIONS,
     }

@@ -55,16 +55,17 @@ def test_routing_prefers_vit_and_uses_plantvillage_only_for_other_crops() -> Non
     assert disease.model_for_crop("corn") is disease.VIT  # both cover corn: ViT wins
     assert disease.model_for_crop("potato") is disease.VIT
     assert disease.model_for_crop("tomato") is disease.PLANTVILLAGE
-    assert disease.model_for_crop("mango") is None
+    assert disease.model_for_crop("kiwi") is None
     assert disease.normalise_crop("Maize") == "corn" and disease.normalise_crop(" Paddy ") == "rice"
 
 
 def test_preprocessing_shapes_and_normalisation() -> None:
     img = Image.new("RGB", (640, 300), (255, 0, 0))
-    for m in (disease.VIT, disease.PLANTVILLAGE, disease.ORANGE_FRUIT):
+    for m in (disease.VIT, disease.PLANTVILLAGE, disease.ORANGE_FRUIT, disease.IX_MODELS["mango"]):
         x = disease.preprocess(m, img)
         assert x.shape == (1, 3, 224, 224) and x.dtype == np.float32
-        assert x[0, 0].max() == pytest.approx(1.0) and x[0, 1].min() == pytest.approx(-1.0)
+        hi, lo = (1 - m.mean[0]) / m.std[0], (0 - m.mean[1]) / m.std[1]
+        assert x[0, 0].max() == pytest.approx(hi, rel=1e-5) and x[0, 1].min() == pytest.approx(lo, rel=1e-5)
 
 
 def test_label_tables_match_model_outputs() -> None:
@@ -114,7 +115,7 @@ def test_low_confidence_or_small_margin_is_uncertain(fake_run: Any, top: float, 
 def test_missing_or_unsupported_crop(fake_run: Any) -> None:
     fake_run["p"] = lambda m: probs_for(m, {})
     assert disease.screen(CORN, None)["outcome"] == "cannot_identify"
-    r = disease.screen(CORN, "mango")
+    r = disease.screen(CORN, "kiwi")
     assert r["outcome"] == "unsupported_crop" and "Supported for leaves:" in r["reason"]
     assert "models" not in fake_run  # no model was run
 
@@ -166,7 +167,9 @@ def screen(client: TestClient, farm_id: int, data: bytes, **form: Any) -> Any:
 
 def test_models_endpoint(api: TestClient) -> None:
     info = ok(api.get(f"{V1}/vision/disease/models"))
-    assert [m["key"] for m in info["models"]] == ["crop_vit", "plantvillage", "orange_fruit"]
+    assert [m["key"] for m in info["models"]][:3] == ["crop_vit", "plantvillage", "orange_fruit"]
+    assert len(info["models"]) == 15 and info["supported_crops"]["mango"] == "leaf_mango"
+    assert info["crop_groups"]["mango"] == "fruit" and info["crop_groups"]["okra"] == "vegetable"
     assert info["supported_fruits"] == {"orange": "orange_fruit"} and info["models"][2]["part"] == "fruit"
     assert "orange" in info["models"][1]["used_for"] and info["models"][2]["used_for"] == ["orange"]
     assert (
@@ -204,7 +207,7 @@ def test_refusals_are_returned_but_not_stored(api: TestClient, farm: dict[str, A
     for data, crop, outcome in (
         (WHEAT, "wheat", "cannot_identify"),
         (BANANA, "rice", "not_a_leaf"),
-        (CORN, "mango", "unsupported_crop"),
+        (CORN, "kiwi", "unsupported_crop"),
     ):
         r = ok(screen(api, farm["id"], data, crop=crop), 201)
         assert (r["outcome"], r["saved"]) == (outcome, False)
@@ -293,3 +296,61 @@ def test_real_orange_model_on_real_fruit_photos(api: TestClient, farm: dict[str,
     assert rec["explanation"]["part"] == "fruit" and rec["knowledge_key"] == "citrus_canker"
     well = ok(screen(api, farm["id"], ORANGE_HEALTHY, crop="orange", part="fruit"), 201)
     assert (well["outcome"], well["label"]) == ("possible_healthy", "Orange: healthy")
+
+
+# --- fruit and vegetable crops (ixrbhii leaf models) --------------------------------
+def test_new_crops_route_to_their_own_leaf_model_and_aliases_work() -> None:
+    for crop in (
+        "mango",
+        "banana",
+        "guava",
+        "papaya",
+        "pomegranate",
+        "lemon",
+        "brinjal",
+        "okra",
+        "cucumber",
+        "bitter gourd",
+        "bottle gourd",
+        "watermelon",
+    ):
+        m = disease.model_for_crop(crop)
+        assert m is not None and m.crops == [crop] and m.mean == (0.485, 0.456, 0.406)
+    assert disease.normalise_crop("Eggplant") == "brinjal" and disease.normalise_crop("bhindi") == "okra"
+    assert disease.model_for_crop("orange") is disease.PLANTVILLAGE  # orange leaves keep their model
+    assert set(disease.supported_crops()) <= set(disease.CROP_GROUPS)
+
+
+def test_only_a_few_models_stay_loaded(monkeypatch: pytest.MonkeyPatch) -> None:
+    import onnxruntime as ort
+
+    monkeypatch.setattr(disease, "_sessions", disease.OrderedDict())
+    monkeypatch.setattr(disease, "_file_sha256", lambda path: "")
+    monkeypatch.setattr(ort, "InferenceSession", lambda *a, **k: object())
+    fakes = [
+        disease.DiseaseModel(**{**disease.IX_MODELS[c].__dict__, "sha256": ""})
+        for c in ("mango", "okra", "guava", "papaya")
+    ]
+    monkeypatch.setattr(disease, "model_available", lambda m: True)
+    for m in fakes:
+        disease._session(m)
+    assert list(disease._sessions) == ["leaf_guava", "leaf_papaya"]  # the least recently used were unloaded
+
+
+needs_ix = pytest.mark.skipif(
+    not disease.model_available(disease.IX_MODELS["banana"]), reason="leaf models not installed"
+)
+
+
+@needs_ix
+def test_real_leaf_models_on_real_field_photos(api: TestClient, farm: dict[str, Any]) -> None:
+    banana = ok(
+        screen(api, farm["id"], (FIX / "banana_black_streak_leaf.jpg").read_bytes(), crop="banana"), 201
+    )
+    assert (banana["outcome"], banana["label"]) == ("possible_disease", "Banana: Black Streak")
+    assert banana["confidence"] > 0.85 and banana["knowledge_key"] == "banana_black_sigatoka"
+    brinjal = ok(
+        screen(api, farm["id"], (FIX / "brinjal_cercospora_leaf.jpg").read_bytes(), crop="eggplant"), 201
+    )
+    assert (brinjal["crop"], brinjal["label"]) == ("brinjal", "Brinjal: Cercospora Spot")
+    assert brinjal["knowledge"]["name"].startswith("Cercospora")

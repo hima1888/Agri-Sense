@@ -14,8 +14,10 @@ Rules (agreed in Phase 10; thresholds are untuned starting points from an 11-ima
 # ruff: noqa: E501  (label tables and user-facing messages read better unwrapped)
 from __future__ import annotations
 
+import gc
 import hashlib
 import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -49,7 +51,11 @@ class DiseaseModel:
     published_accuracy: str
     limitations: list[str] = field(default_factory=list)
     part: str = "leaf"  # what the photo must show: "leaf" or "fruit"
-    square_resize: bool = True  # straight to 224x224 (ViT); False: shortest edge 256 + centre crop
+    resize: str = (
+        "square"  # "square": straight to 224x224; "short256"/"short224": shortest edge, then centre crop 224
+    )
+    mean: tuple[float, float, float] = (0.5, 0.5, 0.5)
+    std: tuple[float, float, float] = (0.5, 0.5, 0.5)
 
     @property
     def path(self) -> Path:
@@ -103,7 +109,7 @@ PLANTVILLAGE = DiseaseModel(
     licence="'other' (unspecified)",
     architecture="MobileNetV2 1.0, 2.27 M parameters",
     preprocessing="shortest edge 256 bilinear (long side floored), centre crop 224, /255, (x - 0.5) / 0.5",
-    square_resize=False,
+    resize="short256",
     labels=[
         ("apple", "Apple scab"),
         ("apple", "Black rot"),
@@ -172,10 +178,245 @@ ORANGE_FRUIT = DiseaseModel(
     part="fruit",
 )
 
+# ixrbhii ConvNeXt-Small leaf models (CC BY 4.0), converted by scripts/convert_leaf_models.py.
+# crop key -> (repo crop name, labels in model order, self-reported test accuracy, test photos)
+_IX: dict[str, tuple[str, list[str], str, int]] = {
+    "mango": (
+        "mango",
+        [
+            "Anthracnose",
+            "Bacterial Canker",
+            "Cutting Weevil",
+            "Die Back",
+            "Gall Midge",
+            "Healthy",
+            "Powdery Mildew",
+            "Sooty Mould",
+        ],
+        "99.8",
+        0,
+    ),
+    "banana": (
+        "banana",
+        [
+            "Bract Mosaic Virus Disease",
+            "Healthy",
+            "Insect Pest Damage",
+            "Moko Disease",
+            "Yellow Sigatoka Disease",
+            "Black Streak",
+            "Bunchy Top",
+            "Cordana Spot",
+            "Fruit Anthracnose",
+            "Panama Disease (Fusarium Wilt)",
+        ],
+        "98.8",
+        748,
+    ),
+    "guava": (
+        "guava",
+        [
+            "Healthy",
+            "Rust / Leaf Spot",
+            "Tea Mosquito Bug / Thrips",
+            "Anthracnose",
+            "Multiple Diseases",
+            "YLD",
+        ],
+        "100.0",
+        1345,
+    ),
+    "papaya": (
+        "papaya",
+        [
+            "Anthracnose",
+            "Bacterial Spot",
+            "Leaf Curl",
+            "Healthy",
+            "Mealybug",
+            "Mite Disease",
+            "Mosaic",
+            "Ringspot",
+        ],
+        "97.1",
+        0,
+    ),
+    "pomegranate": (
+        "pomegranate",
+        ["Alternaria", "Anthracnose", "Bacterial Blight", "Cercospora", "Healthy"],
+        "99.2",
+        638,
+    ),
+    "lemon": (
+        "citrus",
+        [
+            "Bacterial Blight",
+            "Black Spot",
+            "Canker",
+            "Dry Leaf",
+            "Healthy",
+            "Leaf Curl Virus",
+            "Sooty Mould",
+            "Spider Mites",
+        ],
+        "99.5",
+        0,
+    ),
+    "brinjal": (
+        "brinjal",
+        [
+            "Begomovirus",
+            "Verticillium Wilt",
+            "Nutrient Deficiency",
+            "Shoot and Fruit Borer",
+            "MIT/EB Pest Damage",
+            "Healthy",
+            "Cercospora Spot",
+            "Phomopsis Fruit Rot",
+        ],
+        "98.0",
+        0,
+    ),
+    "okra": (
+        "okra",
+        [
+            "Alternaria Leaf Spot",
+            "Cercospora Leaf Spot",
+            "Downy Mildew",
+            "Healthy",
+            "Leaf Curl Virus",
+            "Phyllosticta Leaf Spot",
+        ],
+        "97.5",
+        0,
+    ),
+    "cucumber": (
+        "cucumber",
+        [
+            "Angular Leaf Spot",
+            "Anthracnose",
+            "Bacterial Wilt",
+            "Downy Mildew",
+            "Gummy Stem Blight",
+            "Healthy",
+            "Nutrient Deficiency",
+            "Powdery Mildew",
+        ],
+        "97.9",
+        819,
+    ),
+    "bitter gourd": (
+        "bitter-gourd",
+        ["Downy Mildew", "Fusarium Wilt", "Healthy", "Mosaic Virus", "Nutrient Deficiency"],
+        "94.9",
+        0,
+    ),
+    "bottle gourd": (
+        "bottle-gourd",
+        [
+            "Alternaria Leaf Blight",
+            "Anthracnose",
+            "Downy Mildew",
+            "Healthy",
+            "Mosaic Virus",
+            "Nutrient Deficiency",
+        ],
+        "92.8",
+        0,
+    ),
+    "watermelon": ("watermelon", ["Anthracnose", "Downy Mildew", "Healthy", "Mosaic Virus"], "100.0", 0),
+}
+IX_SHA256: dict[str, str] = {  # checksums of the converted files
+    "banana": "035b51739236d76ee5488b227a80992d3e3855fc408889ad8ecb41a716d4c5de",
+    "bitter_gourd": "41d3db7d5864de6fb8ddaae94f115e6980f6f9e2179fa0e5b95470e82a67eb30",
+    "bottle_gourd": "7428a4c7786bffefa737edfa7e1655452db8418e484e0eadc1ebf7757f727e2c",
+    "brinjal": "a094bb86a6e219c007f429d481da7f009ebcbca7dea36b3e474946777a2e489b",
+    "citrus": "a26f1fcc894000a89c54e997fd165e2e94847d0a63f653becdc52dee6b36850b",
+    "cucumber": "f7062585cf1bacbed95ff1725f4f4f6be1e9d2473a4d280f66f51844c312f507",
+    "guava": "486a4a81b17ce833d802e03a3c0977ebd3a2efcbc0385cd1bfec3e187cd9eed5",
+    "mango": "2d0681a6e4f5c960d06ccea805d9a4844239a0e464bb112c5420379fa210192a",
+    "okra": "f9aca05e34c6754e21c3ccac9085b6a4d9ef7e2ca00b713ff76b8b1bab294c0b",
+    "papaya": "d40d0917c73d03f54ccc9498140a899fbb9f19c3ca48aa5fb7a6473fef75ab28",
+    "pomegranate": "93d7fa90628b31f6183b029273911db5dd5b7eb17c954731232f2af97a440fbe",
+    "watermelon": "9ee68dc9e1f9e0c931768b226436a5d6c614d4c0b30a958ccf891c7815862cdc",
+}
+
+
+def _ix_model(crop: str) -> DiseaseModel:
+    repo, labels, acc, n = _IX[crop]
+    slug = repo.replace("-", "_")
+    return DiseaseModel(
+        key=f"leaf_{slug}",
+        name=f"{repo}-disease-convnext",
+        version="hf-ixrbhii-onnx17-int8",
+        file=f"leaf_{slug}_int8.onnx",
+        sha256=IX_SHA256.get(slug, ""),
+        source=f"https://huggingface.co/ixrbhii/{repo}-disease-convnext",
+        weights_source="model.safetensors (main, half precision), ONNX opset 17, weights quantised to int8",
+        licence="CC BY 4.0 (credit: ixrbhii on Hugging Face)",
+        architecture="ConvNeXt-Small (timm convnext_small), 49.5 M parameters",
+        preprocessing="shortest edge 224 bilinear, centre crop 224, /255, ImageNet mean/std",
+        labels=[(crop, None if lbl == "Healthy" else lbl) for lbl in labels],
+        published_accuracy=f"{acc} % self-reported on held-out photos from its own datasets{f' ({n:,} photos)' if n else ''}; unverified",
+        limitations=[
+            "Trained on photos from public datasets; field photos usually score lower than the published accuracy.",
+            "Single-crop model: it has no 'other crop' class, so a leaf of another crop still gets one of its answers.",
+        ],
+        resize="short224",
+        mean=(0.485, 0.456, 0.406),
+        std=(0.229, 0.224, 0.225),
+    )
+
+
 MODELS = {m.key: m for m in (VIT, PLANTVILLAGE, ORANGE_FRUIT)}
+IX_MODELS = {c: _ix_model(c) for c in _IX}
+MODELS.update({m.key: m for m in IX_MODELS.values()})
 FRUIT_MODELS = {c: m for m in (ORANGE_FRUIT,) for c in m.crops}
 PARTS = ("leaf", "fruit")
-CROP_ALIASES = {"maize": "corn", "capsicum": "bell pepper", "sweet pepper": "bell pepper", "paddy": "rice"}
+CROP_ALIASES = {
+    "maize": "corn", "capsicum": "bell pepper", "sweet pepper": "bell pepper", "paddy": "rice",
+    "eggplant": "brinjal", "aubergine": "brinjal", "lady finger": "okra", "bhindi": "okra",
+    "karela": "bitter gourd", "lauki": "bottle gourd", "citrus": "lemon",
+}  # fmt: skip
+
+# How the crop list is grouped in the app.
+CROP_GROUPS: dict[str, str] = {
+    **{
+        c: "fruit"
+        for c in (
+            "apple",
+            "banana",
+            "blueberry",
+            "cherry",
+            "grape",
+            "guava",
+            "lemon",
+            "mango",
+            "orange",
+            "papaya",
+            "peach",
+            "pomegranate",
+            "raspberry",
+            "strawberry",
+        )
+    },
+    **{
+        c: "vegetable"
+        for c in (
+            "bell pepper",
+            "bitter gourd",
+            "bottle gourd",
+            "brinjal",
+            "cucumber",
+            "okra",
+            "potato",
+            "squash",
+            "tomato",
+            "watermelon",
+        )
+    },
+    **{c: "field" for c in ("corn", "rice", "soybean", "wheat")},
+}
 
 COMMON_LIMITATIONS = [
     "Screening aid only, not a diagnosis. Confirm with an agronomist or extension officer before any treatment.",
@@ -201,7 +442,7 @@ def model_for_crop(crop: str, part: str = "leaf") -> DiseaseModel | None:
         return VIT
     if crop in PLANTVILLAGE.crops:
         return PLANTVILLAGE
-    return None
+    return IX_MODELS.get(crop)
 
 
 def supported_fruits() -> dict[str, str]:
@@ -211,17 +452,26 @@ def supported_fruits() -> dict[str, str]:
 def supported_crops() -> dict[str, str]:
     return {
         c: (m.key if (m := model_for_crop(c)) else "")
-        for c in sorted(set(VIT.crops) | set(PLANTVILLAGE.crops))
+        for c in sorted(set(VIT.crops) | set(PLANTVILLAGE.crops) | set(IX_MODELS))
     }
 
 
 # ------------------------------------------------------------------ inference
 _lock = threading.Lock()
-_sessions: dict[str, Any] = {}
+_sessions: OrderedDict[str, Any] = OrderedDict()
+MAX_LOADED = 2  # keep memory within a 512 MB server: the least recently used model is unloaded first
 
 
 def model_available(m: DiseaseModel) -> bool:
     return m.path.is_file()
+
+
+def _file_sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _session(m: DiseaseModel) -> Any:
@@ -231,28 +481,40 @@ def _session(m: DiseaseModel) -> Any:
                 raise ModelUnavailableError(
                     f"Disease model {m.name} is not installed. See docs/DISEASE_MODELS.md (scripts/convert_disease_models.py)."
                 )
-            if hashlib.sha256(m.path.read_bytes()).hexdigest() != m.sha256:
+            if _file_sha256(m.path) != m.sha256:
                 raise ModelUnavailableError(f"Disease model {m.name} failed its checksum; reinstall it.")
             import onnxruntime as ort  # type: ignore[import-untyped]
 
             opts = ort.SessionOptions()
             opts.log_severity_level = 3
+            opts.enable_cpu_mem_arena = False  # give memory back when a model is unloaded
+            while len(_sessions) >= MAX_LOADED:
+                _sessions.popitem(last=False)
+                gc.collect()
             _sessions[m.key] = ort.InferenceSession(str(m.path), opts, providers=["CPUExecutionProvider"])
+        _sessions.move_to_end(m.key)
         return _sessions[m.key]
 
 
 def preprocess(m: DiseaseModel, img: Image.Image) -> np.ndarray:
-    """Matches the models' Hugging Face image processors exactly (verified: max difference 0)."""
-    if m.square_resize:
+    """Matches each model's own image processor (Hugging Face or timm)."""
+    if m.resize == "square":
         img = img.resize((224, 224), Image.Resampling.BILINEAR)
     else:
+        size = 256 if m.resize == "short256" else 224
         w, h = img.size
-        nw, nh = (256, int(256 * h / w)) if w <= h else (int(256 * w / h), 256)
+        if m.resize == "short256":  # HF processor floors the long side
+            nw, nh = (size, int(size * h / w)) if w <= h else (int(size * w / h), size)
+        else:  # timm rounds it
+            nw, nh = (
+                (size, max(size, round(size * h / w))) if w <= h else (max(size, round(size * w / h)), size)
+            )
         img = img.resize((nw, nh), Image.Resampling.BILINEAR)
         left, top = (nw - 224) // 2, (nh - 224) // 2
         img = img.crop((left, top, left + 224, top + 224))
     a = np.asarray(img, dtype=np.float32) / 255.0
-    return np.asarray(((a - 0.5) / 0.5).transpose(2, 0, 1)[None], dtype=np.float32)
+    mean, std = np.asarray(m.mean, dtype=np.float32), np.asarray(m.std, dtype=np.float32)
+    return np.asarray(((a - mean) / std).transpose(2, 0, 1)[None], dtype=np.float32)
 
 
 def run(m: DiseaseModel, img: Image.Image) -> np.ndarray:
@@ -423,7 +685,7 @@ def models_info() -> list[dict[str, Any]]:
             "part": m.part,
             "published_accuracy": m.published_accuracy, "limitations": m.limitations,
         }
-        for m in (VIT, PLANTVILLAGE, ORANGE_FRUIT)
+        for m in MODELS.values()
     ]  # fmt: skip
 
 

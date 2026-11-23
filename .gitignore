@@ -14,6 +14,7 @@ backend/ml_models/*.onnx
 !backend/ml_models/crop_leaf_vit.onnx
 !backend/ml_models/plantvillage_mnv2.onnx
 !backend/ml_models/orange_fruit_vit_int8.onnx
+!backend/ml_models/leaf_*_int8.onnx
 
 # Uploaded images (Phase 9)
 backend/uploads/

@@ -11,6 +11,7 @@ import { useFilePreview } from '@/lib/use-file-preview'
 import { HealthyPanel, KnowledgePanel, KnowledgeToggle } from './knowledge'
 import { useDeleteDiseaseCheck, useDiseaseChecks, useDiseaseModels, useScreenLeaf, type DiseaseRecord, type Part, type Screening } from './api'
 
+const GROUPS = [['fruit', 'Fruit crops'], ['vegetable', 'Vegetable crops'], ['field', 'Field crops']] as const
 const selectCls = 'mt-1.5 block w-full rounded-lg border border-white/10 bg-ink-950/60 px-3 py-2 text-sm text-paper'
 
 const OUTCOME: Record<Screening['outcome'], { title: string; tone: Tone }> = {
@@ -192,7 +193,12 @@ export function DiseaseSection({ farmId, zones }: { farmId: number; zones: ZoneD
                 Crop
                 <select className={selectCls} value={crop} onChange={(e) => chooseCrop(e.target.value)}>
                   <option value="">From zone</option>
-                  {crops.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {part === 'fruit'
+                    ? crops.map((c) => <option key={c} value={c}>{c}</option>)
+                    : GROUPS.map(([g, title]) => {
+                        const list = crops.filter((c) => (models.data?.crop_groups[c] ?? 'field') === g)
+                        return list.length ? <optgroup key={g} label={`${title} (${list.length})`}>{list.map((c) => <option key={c} value={c}>{c}</option>)}</optgroup> : null
+                      })}
                 </select>
               </label>
               <label className="block text-sm text-sage-200">

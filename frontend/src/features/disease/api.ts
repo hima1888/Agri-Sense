@@ -96,6 +96,7 @@ const ModelsSchema = z.object({
   ),
   supported_crops: z.record(z.string(), z.string()),
   supported_fruits: z.record(z.string(), z.string()).default({}),
+  crop_groups: z.record(z.string(), z.string()).default({}),
   thresholds: z.object({ min_top1: num, min_margin: num }),
   limitations: z.array(z.string()),
 })
